@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starlink Token WiFi - High Speed Internet Solutions</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Supabase CDN MUST be loaded first -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        /* Additional styles for clickable contact items */
+        .contact-item.clickable {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .contact-item.clickable:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .contact-item.clickable:active {
+            transform: translateY(-1px);
+        }
+        
+        .clickable-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: background 0.3s;
+        }
+        
+        .clickable-btn:hover {
+            background: #0da271;
+        }
+        
+        .whatsapp-btn {
+            background: #25D366;
+        }
+        
+        .whatsapp-btn:hover {
+            background: #1da851;
+        }
+        
+        .email-btn {
+            background: #EA4335;
+        }
+        
+        .email-btn:hover {
+            background: #d33426;
+        }
+        
+        .call-btn {
+            background: #2563eb;
+        }
+        
+        .call-btn:hover {
+            background: #1d4ed8;
+        }
+        
+        /* Loading state for gallery */
+        .loading-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            width: 100%;
+        }
+        
+        .loading-item {
+            height: 250px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 8px;
+        }
+        
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">
+                <img src="https://image2url.com/r2/default/images/1770561337315-920e5f5d-2254-4c03-8c95-c8eb7eac8442.jpg" alt="Starlink Token WiFi Logo">
+                <span>Starlink Token WiFi</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#home">Home</a></li>
+                <li><a href="#portfolio">Services</a></li>
+                <li>
+                    <a href="#gallery" class="dropdown-toggle">
+                        Gallery <i class="fas fa-chevron-down"></i>
+                    </a>
+                    <div class="dropdown-menu">
+                        <a href="#gallery-preview">Featured Projects</a>
+                        <a href="javascript:void(0)" onclick="openGalleryModal()">View All Photos</a>
+                        <a href="#contact">Request Site Visit</a>
+                    </div>
+                </li>
+                <li>
+                    <a href="#bundles" class="dropdown-toggle">
+                        Bundles <i class="fas fa-chevron-down"></i>
+                    </a>
+                    <div class="dropdown-menu">
+                        <a href="javascript:void(0)" onclick="showBundles()">View All Bundles</a>
+                        <a href="#contact">Get Custom Quote</a>
+                        <a href="#contact">Business Solutions</a>
+                    </div>
+                </li>
+                <li><a href="#contact">Contact</a></li>
+                <li>
+                    <a href="javascript:void(0)" class="admin-btn" id="messages-notification" style="position: relative;">
+                        <i class="fas fa-envelope"></i> Messages 
+                        <span id="message-count" class="notification-badge" style="display: none;">0</span>
+                    </a>
+                </li>
+            </ul>
+            <div class="mobile-menu">
+                <i class="fas fa-bars"></i>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="home" class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1>High-Speed WiFi Solutions</h1>
+                <p>Reliable internet connectivity with affordable data bundles for homes and businesses</p>
+                <div class="hero-buttons">
+                    <a href="#portfolio" class="btn btn-primary">Our Services</a>
+                    <a href="javascript:void(0)" onclick="showBundles()" class="btn btn-secondary">View Bundles</a>
+                </div>
+                <div class="hero-contact-info" style="margin-top: 2rem; display: flex; gap: 1.5rem; justify-content: center; flex-wrap: wrap;">
+                    <button class="clickable-btn call-btn" onclick="callNow()">
+                        <i class="fas fa-phone"></i> Call Now
+                    </button>
+                    <button class="clickable-btn whatsapp-btn" onclick="openWhatsApp()">
+                        <i class="fab fa-whatsapp"></i> WhatsApp
+                    </button>
+                    <button class="clickable-btn email-btn" onclick="sendEmail()">
+                        <i class="fas fa-envelope"></i> Email Us
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Portfolio Section -->
+    <section id="portfolio" class="portfolio">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Our Professional Services</h2>
+                <p class="section-subtitle">Comprehensive internet solutions for modern needs</p>
+            </div>
+            
+            <div class="portfolio-grid">
+                <div class="portfolio-card">
+                    <div class="card-icon">
+                        <i class="fas fa-wifi"></i>
+                    </div>
+                    <h3>WiFi Installation</h3>
+                    <p>Professional installation of high-speed WiFi networks with modern equipment</p>
+                    <a href="#contact" class="card-link">Get Quote →</a>
+                </div>
+                
+                <div class="portfolio-card featured">
+                    <div class="card-badge">Popular</div>
+                    <div class="card-icon">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <h3>Data Bundles</h3>
+                    <p>Premium Safaricom data bundles with competitive pricing</p>
+                    <button onclick="showBundles()" class="card-link">View Bundles →</button>
+                </div>
+                
+                <div class="portfolio-card">
+                    <div class="card-icon">
+                        <i class="fas fa-headset"></i>
+                    </div>
+                    <h3>24/7 Support</h3>
+                    <p>Round-the-clock technical support and maintenance</p>
+                    <a href="#contact" class="card-link">Contact Support →</a>
+                </div>
+                
+                <div class="portfolio-card">
+                    <div class="card-icon">
+                        <i class="fas fa-network-wired"></i>
+                    </div>
+                    <h3>Network Setup</h3>
+                    <p>Complete network infrastructure setup for businesses</p>
+                    <a href="#contact" class="card-link">Learn More →</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Gallery Preview Section -->
+    <section id="gallery-preview" class="gallery-preview">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Featured Projects</h2>
+                <p class="section-subtitle">A glimpse of our professional installations</p>
+            </div>
+            
+            <div class="gallery-preview-grid" id="gallery-preview-container">
+                <!-- Preview images loaded dynamically -->
+                <div class="loading-gallery">
+                    <div class="loading-item"></div>
+                    <div class="loading-item"></div>
+                    <div class="loading-item"></div>
+                </div>
+            </div>
+            
+            <div class="section-footer">
+                <button onclick="openGalleryModal()" class="btn btn-primary">
+                    <i class="fas fa-images"></i> View Complete Gallery
+                </button>
+                <a href="#contact" class="btn btn-outline">
+                    <i class="fas fa-camera"></i> Request Project Photos
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Bundles Section (Hidden by default - shows on button click) -->
+    <section id="bundles" class="bundles" style="display: none;">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Data Bundles & Pricing</h2>
+                <p class="section-subtitle">Select the perfect plan for your needs</p>
+                <button onclick="hideBundles()" class="close-bundles">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
+            
+            <div class="bundles-grid" id="bundles-container">
+                <!-- Bundles loaded dynamically -->
+            </div>
+            
+            <div class="bundles-actions">
+                <button onclick="openWhatsApp()" class="btn btn-primary">
+                    <i class="fab fa-whatsapp"></i> WhatsApp for Custom Plan
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="contact">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Get In Touch</h2>
+                <p class="section-subtitle">Contact us for professional consultation</p>
+            </div>
+            
+            <div class="contact-wrapper">
+                <div class="contact-info">
+                    <div class="contact-item clickable" onclick="callNow()">
+                        <i class="fas fa-phone"></i>
+                        <div>
+                            <h3>Call Us</h3>
+                            <p>0740 851 330</p>
+                            <button class="clickable-btn call-btn">
+                                <i class="fas fa-phone"></i> Call Now
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="contact-item clickable" onclick="openWhatsApp()">
+                        <i class="fab fa-whatsapp"></i>
+                        <div>
+                            <h3>WhatsApp</h3>
+                            <p>Chat with us instantly</p>
+                            <button class="clickable-btn whatsapp-btn">
+                                <i class="fab fa-whatsapp"></i> Open WhatsApp
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="contact-item clickable" onclick="sendEmail()">
+                        <i class="fas fa-envelope"></i>
+                        <div>
+                            <h3>Email</h3>
+                            <p>starlinktokenwifi@gmail.com</p>
+                            <button class="clickable-btn email-btn">
+                                <i class="fas fa-envelope"></i> Send Email
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="contact-item">
+                        <i class="fas fa-clock"></i>
+                        <div>
+                            <h3>Business Hours</h3>
+                            <p>Mon - Sat: 8:00 AM - 6:00 PM</p>
+                            <p>Sunday: Emergency Only</p>
+                        </div>
+                    </div>
+                    
+                    <div class="contact-item">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <div>
+                            <h3>Location</h3>
+                            <p>Nairobi, Kenya</p>
+                            <button class="clickable-btn" onclick="openLocation()" style="background: #8b5cf6;">
+                                <i class="fas fa-map"></i> View on Map
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="contact-form">
+                    <form id="contact-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <input type="text" id="name" placeholder="Your Name" required>
+                            </div>
+                            <div class="form-group">
+                                <input type="email" id="email" placeholder="Email Address" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <input type="tel" id="phone" placeholder="Phone Number (e.g., 0740 851 330)">
+                        </div>
+                        
+                        <div class="form-group">
+                            <select id="service">
+                                <option value="">Select Service</option>
+                                <option value="wifi">WiFi Installation</option>
+                                <option value="bundles">Data Bundles</option>
+                                <option value="support">Technical Support</option>
+                                <option value="consultation">Consultation</option>
+                                <option value="business">Business Solutions</option>
+                                <option value="home">Home Solutions</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <textarea id="message" rows="4" placeholder="Your message..." required></textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i> Send Message
+                        </button>
+                    </form>
+                    <div id="form-message"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <img src="https://image2url.com/r2/default/images/1770561337315-920e5f5d-2254-4c03-8c95-c8eb7eac8442.jpg" alt="Logo">
+                    <div>
+                        <h3>Starlink Token WiFi</h3>
+                        <p>Professional Internet Solutions</p>
+                    </div>
+                </div>
+                
+                <div class="footer-links">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="#home">Home</a></li>
+                        <li><a href="#portfolio">Services</a></li>
+                        <li><a href="javascript:void(0)" onclick="openGalleryModal()">Gallery</a></li>
+                        <li><a href="javascript:void(0)" onclick="showBundles()">Bundles</a></li>
+                        <li><a href="#contact">Contact</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-contact">
+                    <h4>Contact Info</h4>
+                    <p><i class="fas fa-map-marker-alt"></i> Nairobi, Kenya</p>
+                    <p><i class="fas fa-phone"></i> 0740 851 330</p>
+                    <p><i class="fas fa-envelope"></i> starlinktokenwifi@gmail.com</p>
+                    <div class="footer-buttons" style="margin-top: 1rem; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="clickable-btn call-btn" onclick="callNow()" style="padding: 5px 10px; font-size: 0.8rem;">
+                            <i class="fas fa-phone"></i> Call
+                        </button>
+                        <button class="clickable-btn whatsapp-btn" onclick="openWhatsApp()" style="padding: 5px 10px; font-size: 0.8rem;">
+                            <i class="fab fa-whatsapp"></i> WhatsApp
+                        </button>
+                        <button class="clickable-btn email-btn" onclick="sendEmail()" style="padding: 5px 10px; font-size: 0.8rem;">
+                            <i class="fas fa-envelope"></i> Email
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; 2024 Starlink Token WiFi. All rights reserved.</p>
+                <div class="social-links">
+                    <a href="#" onclick="openFacebook()"><i class="fab fa-facebook"></i></a>
+                    <a href="#" onclick="openTwitter()"><i class="fab fa-twitter"></i></a>
+                    <a href="#" onclick="openInstagram()"><i class="fab fa-instagram"></i></a>
+                    <a href="#" onclick="openWhatsApp()"><i class="fab fa-whatsapp"></i></a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Gallery Modal -->
+    <div id="galleryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-images"></i> Complete Project Gallery</h3>
+                <button class="modal-close" onclick="closeGalleryModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="gallery-filters">
+                    <button class="filter-btn active" data-filter="all">All</button>
+                    <button class="filter-btn" data-filter="installation">Installations</button>
+                    <button class="filter-btn" data-filter="business">Business</button>
+                    <button class="filter-btn" data-filter="home">Home</button>
+                </div>
+                <div class="modal-gallery" id="modalGalleryContainer">
+                    <!-- Full gallery loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="notification-toast" class="notification-toast">
+        <div class="notification-content">
+            <i class="fas fa-info-circle"></i>
+            <span id="notification-message"></span>
+            <button class="notification-close" onclick="closeNotification()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/main-browser.js"></script>
+    
+    <!-- Contact Action Functions -->
+    <script>
+        // Contact action functions
+        function callNow() {
+            const phoneNumber = '0740851330';
+            if (confirm(`Call ${phoneNumber}?`)) {
+                window.location.href = `tel:${phoneNumber}`;
+            }
+        }
+        
+        function openWhatsApp() {
+            const phoneNumber = '254740851330';
+            const message = 'Hello Starlink Token WiFi, I am interested in your services.';
+            const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+            window.open(whatsappUrl, '_blank');
+        }
+        
+        function sendEmail() {
+            const email = 'starlinktokenwifi@gmail.com';
+            const subject = 'Inquiry about Starlink Token WiFi Services';
+            const body = 'Hello Starlink Token WiFi,\n\nI would like to inquire about your services.\n\nBest regards,';
+            const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            window.location.href = mailtoUrl;
+        }
+        
+        function openLocation() {
+            const address = 'Nairobi, Kenya';
+            const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+            window.open(mapsUrl, '_blank');
+        }
+        
+        // Social media functions
+        function openFacebook() {
+            window.open('https://facebook.com', '_blank');
+        }
+        
+        function openTwitter() {
+            window.open('https://twitter.com', '_blank');
+        }
+        
+        function openInstagram() {
+            window.open('https://instagram.com', '_blank');
+        }
+        
+        // Make functions available globally
+        window.callNow = callNow;
+        window.openWhatsApp = openWhatsApp;
+        window.sendEmail = sendEmail;
+        window.openLocation = openLocation;
+        window.openFacebook = openFacebook;
+        window.openTwitter = openTwitter;
+        window.openInstagram = openInstagram;
+    </script>
+</body>
+</html>
