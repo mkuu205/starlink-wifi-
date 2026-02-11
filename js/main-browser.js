@@ -1,12 +1,10 @@
-
 // Browser-compatible main script with Supabase
 
 console.log('Browser-compatible main script loading...');
 
-// Supabase configuration - REPLACE WITH YOUR CREDENTIALS
-const SUPABASE_URL = 'https://jgaeldguwezbgglwaivz.supabase.co'; // Replace with your Supabase URL
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpnYWVsZGd1d2V6YmdnbHdhaXZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1Nzg1NTAsImV4cCI6MjA4NjE1NDU1MH0.pAkRxRs1gvmrJJR_CNietYes6ju6qOMP8Etnpr3TtyQ'; // Replace with your Supabase anon key
-
+// Supabase configuration
+const SUPABASE_URL = 'https://jgaeldguwezbgglwaivz.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpnYWVsZGd1d2V6YmdnbHdhaXZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1Nzg1NTAsImV4cCI6MjA4NjE1NDU1MH0.pAkRxRs1gvmrJJR_CNietYes6ju6qOMP8Etnpr3TtyQ';
 
 // Initialize Supabase client
 let supabaseClient = null;
@@ -204,35 +202,62 @@ function setupContactForm() {
             const formMessage = document.getElementById('form-message');
             
             try {
-                // Send to backend API
-                const response = await fetch('/api/contact', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        name: name,
-                        email: email,
-                        phone: phone,
-                        service: service,
-                        message: message
-                    })
-                });
-                
-                const result = await response.json();
-                
-                if (response.ok && result.success) {
-                    formMessage.innerHTML = '<p class="success">Message sent successfully! We\'ll contact you soon.</p>';
+                // Check if we have supabase client
+                if (!supabaseClient) {
+                    // Fallback to localStorage if no Supabase
+                    const messages = JSON.parse(localStorage.getItem('contact_messages') || '[]');
+                    messages.push({
+                        id: Date.now(),
+                        name,
+                        email,
+                        phone,
+                        service,
+                        message,
+                        read: false,
+                        created_at: new Date().toISOString()
+                    });
+                    localStorage.setItem('contact_messages', JSON.stringify(messages));
+                    
+                    formMessage.innerHTML = '<p class="success">Message saved locally! We\'ll contact you soon.</p>';
                     formMessage.style.color = 'green';
                     form.reset();
+                    
+                    // Update message count
+                    updateMessageCount();
                     
                     // Auto-hide message after 5 seconds
                     setTimeout(() => {
                         formMessage.innerHTML = '';
                     }, 5000);
-                } else {
-                    throw new Error(result.message || 'Failed to send message');
+                    return;
                 }
+                
+                // Send to Supabase
+                const { error } = await supabaseClient
+                    .from('messages')
+                    .insert([{
+                        name: name,
+                        email: email,
+                        phone: phone,
+                        service: service,
+                        message: message,
+                        read: false,
+                        created_at: new Date().toISOString()
+                    }]);
+                
+                if (error) throw error;
+                
+                formMessage.innerHTML = '<p class="success">Message sent successfully! We\'ll contact you soon.</p>';
+                formMessage.style.color = 'green';
+                form.reset();
+                
+                // Update message count
+                updateMessageCount();
+                
+                // Auto-hide message after 5 seconds
+                setTimeout(() => {
+                    formMessage.innerHTML = '';
+                }, 5000);
                 
             } catch (error) {
                 console.error('Error sending message:', error);
@@ -247,51 +272,58 @@ function setupContactForm() {
 function setupMessageNotification() {
     const messageButton = document.getElementById('messages-notification');
     if (messageButton) {
-        messageButton.addEventListener('click', async () => {
-            // Scroll to contact section
-            const contactSection = document.getElementById('contact');
-            if (contactSection) {
-                contactSection.scrollIntoView({ behavior: 'smooth' });
-                
-                // Highlight the contact form
-                const contactForm = document.querySelector('.contact-form');
-                if (contactForm) {
-                    contactForm.style.animation = 'highlightForm 2s ease';
-                    setTimeout(() => {
-                        contactForm.style.animation = '';
-                    }, 2000);
-                }
-            }
-        });
+        // Remove old click handler if exists
+        messageButton.removeEventListener('click', handleMessageClick);
+        
+        // Add new click handler
+        messageButton.addEventListener('click', handleMessageClick);
     }
+}
+
+function handleMessageClick(e) {
+    e.preventDefault();
+    e.stopPropagation();
     
-    // Add CSS for form highlight animation
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes highlightForm {
-            0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
-            50% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0.2); }
-            100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+    // Check if messages modal function exists
+    if (typeof window.openMessagesModal === 'function') {
+        window.openMessagesModal();
+    } else {
+        // Fallback to scrolling to contact section
+        const contactSection = document.getElementById('contact');
+        if (contactSection) {
+            contactSection.scrollIntoView({ behavior: 'smooth' });
         }
-    `;
-    document.head.appendChild(style);
+    }
 }
 
 // Update message count badge
 async function updateMessageCount() {
     try {
-        const response = await fetch('/api/messages');
-        const result = await response.json();
+        let unreadCount = 0;
         
-        if (result.success) {
-            const unreadCount = result.data ? result.data.filter(msg => !msg.read).length : 0;
-            const messageCount = document.getElementById('message-count');
+        if (supabaseClient) {
+            // Try to get count from Supabase
+            const { count, error } = await supabaseClient
+                .from('messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('read', false);
             
-            if (messageCount) {
-                messageCount.textContent = unreadCount;
-                messageCount.style.display = unreadCount > 0 ? 'block' : 'none';
+            if (!error && count !== null) {
+                unreadCount = count;
             }
+        } else {
+            // Fallback to localStorage
+            const messages = JSON.parse(localStorage.getItem('contact_messages') || '[]');
+            unreadCount = messages.filter(msg => !msg.read).length;
         }
+        
+        const messageCount = document.getElementById('message-count');
+        
+        if (messageCount) {
+            messageCount.textContent = unreadCount;
+            messageCount.style.display = unreadCount > 0 ? 'flex' : 'none';
+        }
+        
     } catch (error) {
         console.error('Error updating message count:', error);
     }
@@ -641,7 +673,7 @@ function selectBundle(bundleId) {
 
 // WhatsApp contact function
 function openWhatsApp() {
-    const phoneNumber = '254740851330'; // Replace with your WhatsApp number
+    const phoneNumber = '254740851330';
     const message = 'Hello! I am interested in your WiFi bundles. Please contact me.';
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
@@ -657,5 +689,8 @@ window.loadBundles = loadBundles;
 window.loadGalleryPreview = loadGalleryPreview;
 window.loadFullGallery = loadFullGallery;
 window.openWhatsApp = openWhatsApp;
+window.showNotification = showNotification;
+window.closeNotification = closeNotification;
+window.updateMessageCount = updateMessageCount;
 
 console.log('Browser-compatible main script initialized');
