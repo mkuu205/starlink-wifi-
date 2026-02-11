@@ -90,8 +90,36 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Smooth scrolling for anchor links
+    // Fix messages button - prevent scroll behavior
+    const messagesBtn = document.getElementById('messages-notification');
+    if (messagesBtn) {
+        messagesBtn.onclick = null;
+        messagesBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            
+            // Open messages modal instead of scrolling
+            if (typeof openMessagesModal === 'function') {
+                openMessagesModal();
+            }
+        }, true);
+        
+        const parentLi = messagesBtn.closest('li');
+        if (parentLi) {
+            parentLi.addEventListener('click', function(e) {
+                if (e.target.closest('#messages-notification')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            }, true);
+        }
+    }
+    
+    // Smooth scrolling for anchor links (excluding messages button)
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        if (anchor.id === 'messages-notification') return;
+        
         anchor.addEventListener('click', function(e) {
             if (this.getAttribute('href').startsWith('#') && 
                 this.getAttribute('href') !== '#') {
@@ -114,31 +142,27 @@ document.addEventListener('DOMContentLoaded', () => {
         // Start checking for updates
         checkForUpdates();
         // Set up periodic update checking
-        setInterval(checkForUpdates, 30000); // Check every 30 seconds
+        setInterval(checkForUpdates, 30000);
     }
     
     // Set up contact form and message notification
     setupContactForm();
-    setupMessageNotification();
     updateMessageCount();
     
     // Update message count periodically
-    setInterval(updateMessageCount, 60000); // Update every minute
+    setInterval(updateMessageCount, 60000);
 });
 
 // Function to check for admin updates
 async function checkForUpdates() {
     try {
-        // Check localStorage for updates first
         const updates = JSON.parse(localStorage.getItem('site_updates') || '[]');
         if (updates.length > 0) {
             const latestUpdate = updates[updates.length - 1];
             showNotification(latestUpdate.title || 'Site Update', latestUpdate.content);
-            // Clear the update after showing
             localStorage.setItem('site_updates', JSON.stringify([]));
         }
         
-        // Also check backend if available
         if (supabaseClient) {
             const { data, error } = await supabaseClient
                 .from('notifications')
@@ -151,7 +175,6 @@ async function checkForUpdates() {
                 const notification = data[0];
                 showNotification('New Update', notification.message);
                 
-                // Mark as read/delivered
                 await supabaseClient
                     .from('notifications')
                     .update({ delivered: true })
@@ -172,7 +195,6 @@ function showNotification(title, message) {
         messageElement.innerHTML = `<strong>${title}:</strong> ${message}`;
         toast.classList.add('show');
         
-        // Auto-hide after 5 seconds
         setTimeout(() => {
             toast.classList.remove('show');
         }, 5000);
@@ -201,98 +223,54 @@ function setupContactForm() {
             const message = document.getElementById('message').value;
             const formMessage = document.getElementById('form-message');
             
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+            submitBtn.disabled = true;
+            
             try {
-                // Check if we have supabase client
-                if (!supabaseClient) {
-                    // Fallback to localStorage if no Supabase
-                    const messages = JSON.parse(localStorage.getItem('contact_messages') || '[]');
-                    messages.push({
-                        id: Date.now(),
-                        name,
-                        email,
-                        phone,
-                        service,
-                        message,
-                        read: false,
-                        created_at: new Date().toISOString()
-                    });
-                    localStorage.setItem('contact_messages', JSON.stringify(messages));
-                    
-                    formMessage.innerHTML = '<p class="success">Message saved locally! We\'ll contact you soon.</p>';
-                    formMessage.style.color = 'green';
-                    form.reset();
-                    
-                    // Update message count
-                    updateMessageCount();
-                    
-                    // Auto-hide message after 5 seconds
-                    setTimeout(() => {
-                        formMessage.innerHTML = '';
-                    }, 5000);
-                    return;
-                }
-                
-                // Send to Supabase
-                const { error } = await supabaseClient
-                    .from('messages')
-                    .insert([{
+                const response = await fetch('https://starlink-wifi-backend.onrender.com/api/contact', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
                         name: name,
                         email: email,
                         phone: phone,
                         service: service,
-                        message: message,
-                        read: false,
-                        created_at: new Date().toISOString()
-                    }]);
+                        message: message
+                    })
+                });
                 
-                if (error) throw error;
+                const result = await response.json();
                 
-                formMessage.innerHTML = '<p class="success">Message sent successfully! We\'ll contact you soon.</p>';
-                formMessage.style.color = 'green';
-                form.reset();
-                
-                // Update message count
-                updateMessageCount();
-                
-                // Auto-hide message after 5 seconds
-                setTimeout(() => {
-                    formMessage.innerHTML = '';
-                }, 5000);
+                if (response.ok && result.success) {
+                    formMessage.innerHTML = '<p class="success">Message sent successfully! We\'ll contact you soon.</p>';
+                    formMessage.style.color = 'green';
+                    form.reset();
+                    
+                    if (typeof updateMessageCount === 'function') {
+                        updateMessageCount();
+                    }
+                    
+                } else {
+                    throw new Error(result.message || 'Failed to send message');
+                }
                 
             } catch (error) {
                 console.error('Error sending message:', error);
-                formMessage.innerHTML = '<p class="error">Error sending message. Please try again.</p>';
+                formMessage.innerHTML = '<p class="error">Error sending message. Please try again or call us directly.</p>';
                 formMessage.style.color = 'red';
+            } finally {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+                
+                setTimeout(() => {
+                    formMessage.innerHTML = '';
+                }, 5000);
             }
         });
-    }
-}
-
-// Setup message notification button
-function setupMessageNotification() {
-    const messageButton = document.getElementById('messages-notification');
-    if (messageButton) {
-        // Remove old click handler if exists
-        messageButton.removeEventListener('click', handleMessageClick);
-        
-        // Add new click handler
-        messageButton.addEventListener('click', handleMessageClick);
-    }
-}
-
-function handleMessageClick(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Check if messages modal function exists
-    if (typeof window.openMessagesModal === 'function') {
-        window.openMessagesModal();
-    } else {
-        // Fallback to scrolling to contact section
-        const contactSection = document.getElementById('contact');
-        if (contactSection) {
-            contactSection.scrollIntoView({ behavior: 'smooth' });
-        }
     }
 }
 
@@ -302,7 +280,6 @@ async function updateMessageCount() {
         let unreadCount = 0;
         
         if (supabaseClient) {
-            // Try to get count from Supabase
             const { count, error } = await supabaseClient
                 .from('messages')
                 .select('*', { count: 'exact', head: true })
@@ -311,10 +288,6 @@ async function updateMessageCount() {
             if (!error && count !== null) {
                 unreadCount = count;
             }
-        } else {
-            // Fallback to localStorage
-            const messages = JSON.parse(localStorage.getItem('contact_messages') || '[]');
-            unreadCount = messages.filter(msg => !msg.read).length;
         }
         
         const messageCount = document.getElementById('message-count');
@@ -414,7 +387,6 @@ async function loadGalleryPreview() {
     
     if (!previewContainer) return;
     
-    // Show loading state
     previewContainer.innerHTML = `
         <div class="loading-gallery">
             <div class="loading-item"></div>
@@ -424,12 +396,10 @@ async function loadGalleryPreview() {
     `;
     
     try {
-        // Check if Supabase client is available
         if (!supabaseClient) {
             throw new Error('Supabase client not initialized. Please refresh the page.');
         }
         
-        // Fetch gallery items from Supabase
         const { data, error } = await supabaseClient
             .from('gallery')
             .select('id, title, description, category, image_url, visible')
@@ -441,10 +411,8 @@ async function loadGalleryPreview() {
             throw error;
         }
         
-        // Clear container
         previewContainer.innerHTML = '';
         
-        // If no data, show message
         if (!data || data.length === 0) {
             previewContainer.innerHTML = `
                 <div style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
@@ -456,7 +424,6 @@ async function loadGalleryPreview() {
             return;
         }
         
-        // Create gallery items
         data.forEach(item => {
             previewContainer.appendChild(createGalleryPreviewItem(item, item.id));
         });
@@ -480,7 +447,6 @@ function createGalleryPreviewItem(item, key) {
     const galleryItem = document.createElement('div');
     galleryItem.className = 'gallery-preview-item';
     
-    // Use image_url if available, otherwise fall back to url
     const imageUrl = item.image_url || item.url;
     
     galleryItem.innerHTML = `
@@ -500,7 +466,6 @@ async function loadFullGallery() {
     
     if (!modalContainer) return;
     
-    // Show loading state
     modalContainer.innerHTML = `
         <div style="grid-column: 1 / -1; text-align: center; padding: 4rem;">
             <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #3b82f6;"></i>
@@ -509,12 +474,10 @@ async function loadFullGallery() {
     `;
     
     try {
-        // Check if Supabase client is available
         if (!supabaseClient) {
             throw new Error('Supabase client not initialized. Please refresh the page.');
         }
         
-        // Fetch all visible gallery items from Supabase
         const { data, error } = await supabaseClient
             .from('gallery')
             .select('id, title, description, category, image_url, visible')
@@ -525,10 +488,8 @@ async function loadFullGallery() {
             throw error;
         }
         
-        // Clear container
         modalContainer.innerHTML = '';
         
-        // If no data, show message
         if (!data || data.length === 0) {
             modalContainer.innerHTML = `
                 <div style="grid-column: 1 / -1; text-align: center; padding: 4rem;">
@@ -540,12 +501,10 @@ async function loadFullGallery() {
             return;
         }
         
-        // Create gallery items
         data.forEach((item, index) => {
             modalContainer.appendChild(createModalGalleryItem(item, `full-${item.id}-${index}`));
         });
         
-        // Setup filter functionality
         setupGalleryFilters();
         
     } catch (error) {
@@ -568,14 +527,12 @@ function createModalGalleryItem(item, key) {
     galleryItem.className = 'modal-gallery-item';
     galleryItem.dataset.filter = item.category || 'all';
     
-    // Use image_url if available, otherwise fall back to url
     const imageUrl = item.image_url || item.url;
     
     galleryItem.innerHTML = `
         <img src="${imageUrl}" alt="${item.title || 'Project Image'}" loading="lazy" data-full-src="${imageUrl}">
     `;
     
-    // Add click event to show full image
     galleryItem.addEventListener('click', () => {
         showFullImage(imageUrl, item.title || 'Project Image');
     });
@@ -585,7 +542,6 @@ function createModalGalleryItem(item, key) {
 
 // Function to show full-size image in modal
 function showFullImage(imageUrl, title) {
-    // Create full image modal if it doesn't exist
     let fullImageModal = document.getElementById('fullImageModal');
     if (!fullImageModal) {
         fullImageModal = document.createElement('div');
@@ -601,7 +557,6 @@ function showFullImage(imageUrl, title) {
         `;
         document.body.appendChild(fullImageModal);
         
-        // Add event listeners
         document.getElementById('fullImageClose').addEventListener('click', closeFullImage);
         fullImageModal.addEventListener('click', (e) => {
             if (e.target === fullImageModal) {
@@ -610,7 +565,6 @@ function showFullImage(imageUrl, title) {
         });
     }
     
-    // Set image source and show modal
     document.getElementById('fullImage').src = imageUrl;
     document.getElementById('fullImage').alt = title;
     fullImageModal.style.display = 'flex';
@@ -633,11 +587,9 @@ function setupGalleryFilters() {
         button.addEventListener('click', (e) => {
             const filter = e.target.dataset.filter;
             
-            // Update active state
             filterButtons.forEach(btn => btn.classList.remove('active'));
             e.target.classList.add('active');
             
-            // Filter gallery items
             filterGalleryItems(filter);
         });
     });
@@ -666,8 +618,6 @@ function filterGalleryItems(filter) {
 // Bundle selection
 function selectBundle(bundleId) {
     alert(`Thank you for selecting bundle ${bundleId}! Our sales team will contact you shortly.`);
-    
-    // Open WhatsApp for immediate contact
     openWhatsApp();
 }
 
@@ -677,6 +627,261 @@ function openWhatsApp() {
     const message = 'Hello! I am interested in your WiFi bundles. Please contact me.';
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
+}
+
+// MESSAGES FUNCTIONS
+async function loadMessages() {
+    const container = document.getElementById('messagesContainer');
+    container.innerHTML = '<div style="text-align: center; padding: 2rem;"><i class="fas fa-spinner fa-spin"></i> Loading messages...</div>';
+    
+    try {
+        if (!supabaseClient) {
+            throw new Error('Supabase client not initialized');
+        }
+        
+        const { data, error } = await supabaseClient
+            .from('messages')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (error) {
+            console.error('Supabase error:', error);
+            throw error;
+        }
+        
+        messages = data || [];
+        displayMessages(messages);
+        
+    } catch (error) {
+        console.error('Error loading messages:', error);
+        container.innerHTML = `
+            <div class="no-messages">
+                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
+                <h3>Error Loading Messages</h3>
+                <p>${error.message || 'Please try again later'}</p>
+                <button onclick="loadMessages()" class="btn btn-secondary" style="margin-top: 1rem;">
+                    <i class="fas fa-redo"></i> Retry
+                </button>
+            </div>
+        `;
+    }
+}
+
+function displayMessages(messagesList) {
+    const container = document.getElementById('messagesContainer');
+    
+    if (!messagesList || messagesList.length === 0) {
+        container.innerHTML = `
+            <div class="no-messages">
+                <i class="fas fa-envelope-open" style="font-size: 3rem; color: #ccc; margin-bottom: 1rem;"></i>
+                <p>No messages yet</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    messagesList.forEach(message => {
+        const time = new Date(message.created_at).toLocaleString();
+        const isUnread = !message.read;
+        const phoneDisplay = message.phone ? message.phone : 'No phone provided';
+        
+        html += `
+            <div class="message-item ${isUnread ? 'unread' : ''}" data-id="${message.id}" onclick="markMessageAsRead('${message.id}')">
+                <div class="message-header">
+                    <div class="message-sender">${message.name || 'Unknown'}</div>
+                    <div class="message-time">${time}</div>
+                </div>
+                <div>
+                    ${message.service ? `<span class="message-service">${message.service}</span>` : ''}
+                    <span style="color: #666; font-size: 0.9rem;">${phoneDisplay}</span>
+                </div>
+                <div style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;">
+                    <i class="fas fa-envelope"></i> ${message.email}
+                </div>
+                <div class="message-content">${message.message || 'No message content'}</div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+async function markMessageAsRead(messageId) {
+    try {
+        if (!supabaseClient) return;
+        
+        const { error } = await supabaseClient
+            .from('messages')
+            .update({ read: true, read_at: new Date().toISOString() })
+            .eq('id', messageId);
+        
+        if (error) throw error;
+        
+        const item = document.querySelector(`.message-item[data-id="${messageId}"]`);
+        if (item) {
+            item.classList.remove('unread');
+        }
+        
+        loadUnreadCount();
+        
+    } catch (error) {
+        console.error('Error marking message as read:', error);
+        showNotification('Error updating message status', 'error');
+    }
+}
+
+async function markAllAsRead() {
+    try {
+        if (!supabaseClient) return;
+        
+        const { error } = await supabaseClient
+            .from('messages')
+            .update({ read: true, read_at: new Date().toISOString() })
+            .eq('read', false);
+        
+        if (error) throw error;
+        
+        document.querySelectorAll('.message-item').forEach(item => {
+            item.classList.remove('unread');
+        });
+        
+        loadUnreadCount();
+        
+        showNotification('All messages marked as read', 'success');
+        
+    } catch (error) {
+        console.error('Error marking all as read:', error);
+        showNotification('Error updating messages', 'error');
+    }
+}
+
+async function loadUnreadCount() {
+    try {
+        if (!supabaseClient) return;
+        
+        const { count, error } = await supabaseClient
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('read', false);
+        
+        if (error) throw error;
+        
+        updateBadge(count || 0);
+        
+    } catch (error) {
+        console.error('Error loading unread count:', error);
+    }
+}
+
+function updateBadge(count) {
+    const badge = document.getElementById('message-count');
+    if (!badge) return;
+    
+    if (count > 0) {
+        badge.textContent = count > 9 ? '9+' : count;
+        badge.style.display = 'flex';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+function openMessagesModal() {
+    const modal = document.getElementById('messagesModal');
+    if (modal) {
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+        loadMessages();
+    }
+}
+
+function closeMessagesModal() {
+    const modal = document.getElementById('messagesModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+        loadUnreadCount();
+    }
+}
+
+function refreshMessages() {
+    loadMessages();
+    showNotification('Messages refreshed', 'success');
+}
+
+function exportMessages() {
+    const messages = [];
+    const messageItems = document.querySelectorAll('.message-item');
+    
+    messageItems.forEach(item => {
+        const sender = item.querySelector('.message-sender').textContent;
+        const time = item.querySelector('.message-time').textContent;
+        const content = item.querySelector('.message-content').textContent;
+        messages.push({ sender, time, content });
+    });
+    
+    if (messages.length === 0) {
+        showNotification('No messages to export', 'warning');
+        return;
+    }
+    
+    const headers = ['Sender', 'Time', 'Message'];
+    const csvRows = [
+        headers.join(','),
+        ...messages.map(msg => [
+            `"${msg.sender || ''}"`,
+            `"${msg.time || ''}"`,
+            `"${msg.content || ''}"`
+        ].join(','))
+    ];
+    
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `messages_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    showNotification('Messages exported successfully', 'success');
+}
+
+// Contact action functions
+function callNow() {
+    const phoneNumber = '0740851330';
+    if (confirm(`Call ${phoneNumber}?`)) {
+        window.location.href = `tel:${phoneNumber}`;
+    }
+}
+
+function sendEmail() {
+    const email = 'starlinktokenwifi@gmail.com';
+    const subject = 'Inquiry about Starlink Token WiFi Services';
+    const body = 'Hello Starlink Token WiFi,\n\nI would like to inquire about your services.\n\nBest regards,';
+    const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailtoUrl;
+}
+
+function openLocation() {
+    const address = 'Nakuru, Kenya';
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+    window.open(mapsUrl, '_blank');
+}
+
+// Social media functions
+function openFacebook() {
+    window.open('https://facebook.com', '_blank');
+}
+
+function openTwitter() {
+    window.open('https://twitter.com', '_blank');
+}
+
+function openInstagram() {
+    window.open('https://instagram.com', '_blank');
 }
 
 // Export functions for global use
@@ -692,5 +897,16 @@ window.openWhatsApp = openWhatsApp;
 window.showNotification = showNotification;
 window.closeNotification = closeNotification;
 window.updateMessageCount = updateMessageCount;
+window.openMessagesModal = openMessagesModal;
+window.closeMessagesModal = closeMessagesModal;
+window.markAllAsRead = markAllAsRead;
+window.refreshMessages = refreshMessages;
+window.exportMessages = exportMessages;
+window.callNow = callNow;
+window.sendEmail = sendEmail;
+window.openLocation = openLocation;
+window.openFacebook = openFacebook;
+window.openTwitter = openTwitter;
+window.openInstagram = openInstagram;
 
 console.log('Browser-compatible main script initialized');
