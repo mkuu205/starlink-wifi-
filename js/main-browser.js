@@ -103,11 +103,18 @@ document.addEventListener('DOMContentLoaded', function() {
             e.stopPropagation();
             console.log('Messages button clicked');
             
-            // Open notifications modal
-            if (typeof openNotificationsModal === 'function') {
-                openNotificationsModal();
+            // Open notifications modal - use the global function
+            if (typeof window.openNotificationsModal === 'function') {
+                window.openNotificationsModal();
             } else {
                 console.error('openNotificationsModal function not found');
+                // Fallback
+                var modal = document.getElementById('messagesModal');
+                if (modal) {
+                    modal.style.display = 'block';
+                    document.body.style.overflow = 'hidden';
+                    loadNotifications();
+                }
             }
         });
     }
@@ -694,7 +701,7 @@ function openWhatsApp() {
     window.open(whatsappUrl, '_blank');
 }
 
-// NOTIFICATIONS FUNCTIONS
+// NOTIFICATIONS FUNCTIONS - Using timestamp-based tracking instead of read_by column
 async function loadNotifications() {
     var container = document.getElementById('messagesContainer');
     if (!container) return;
@@ -706,6 +713,7 @@ async function loadNotifications() {
             throw new Error('Supabase client not initialized');
         }
         
+        // Fetch notifications from Supabase - removed read_by column
         var { data, error } = await supabaseClient
             .from('notifications')
             .select('*')
@@ -716,7 +724,8 @@ async function loadNotifications() {
             throw error;
         }
         
-        displayNotifications(data || []);
+        window.notifications = data || [];
+        displayNotifications(window.notifications);
         updateNotificationsBadge();
         
     } catch (error) {
@@ -732,12 +741,12 @@ async function loadNotifications() {
     }
 }
 
-function displayNotifications(notifications) {
+function displayNotifications(notificationsList) {
     var container = document.getElementById('messagesContainer');
     
     if (!container) return;
     
-    if (!notifications || notifications.length === 0) {
+    if (!notificationsList || notificationsList.length === 0) {
         container.innerHTML = '<div class="no-messages">' +
             '<i class="fas fa-bell-slash" style="font-size: 3rem; color: #ccc; margin-bottom: 1rem;"></i>' +
             '<p>No notifications yet</p>' +
@@ -745,13 +754,22 @@ function displayNotifications(notifications) {
         return;
     }
     
+    var lastView = localStorage.getItem('lastNotificationsView');
     var html = '';
-    for (var i = 0; i < notifications.length; i++) {
-        var notification = notifications[i];
+    
+    for (var i = 0; i < notificationsList.length; i++) {
+        var notification = notificationsList[i];
         var time = new Date(notification.created_at).toLocaleString();
-        var isNew = !notification.read_by || !notification.read_by.includes(getCurrentUserId());
         
-        html += '<div class="message-item ' + (isNew ? 'unread' : '') + '" data-id="' + notification.id + '" onclick="markNotificationAsRead(\'' + notification.id + '\')">' +
+        // Check if this notification is new (created after last view)
+        var isNew = false;
+        if (lastView) {
+            isNew = new Date(notification.created_at) > new Date(lastView);
+        } else {
+            isNew = true; // If no last view, all are new
+        }
+        
+        html += '<div class="message-item' + (isNew ? ' unread' : '') + '" data-id="' + notification.id + '" onclick="markNotificationAsRead(\'' + notification.id + '\')">' +
             '<div class="message-header">' +
             '<div class="message-sender">' +
             '<i class="fas fa-bullhorn" style="color: #3b82f6; margin-right: 0.5rem;"></i>' +
@@ -769,121 +787,65 @@ function displayNotifications(notifications) {
     }
     
     container.innerHTML = html;
+}
+
+function markNotificationAsRead(notificationId) {
+    // For timestamp-based tracking, we don't need to update the database
+    // Just update the UI and the last view time will handle it
+    var item = document.querySelector('.message-item[data-id="' + notificationId + '"]');
+    if (item) {
+        item.classList.remove('unread');
+    }
     
-    // Store last viewed time
-    localStorage.setItem('lastNotificationsView', new Date().toISOString());
-}
-
-// Helper function to get current user ID
-function getCurrentUserId() {
-    var userId = localStorage.getItem('userId');
-    if (!userId) {
-        userId = 'user_' + Math.random().toString(36).substr(2, 9);
-        localStorage.setItem('userId', userId);
-    }
-    return userId;
-}
-
-async function markNotificationAsRead(notificationId) {
-    try {
-        if (!supabaseClient) return;
-        
-        var userId = getCurrentUserId();
-        
-        // Get current notification
-        var { data: notification } = await supabaseClient
-            .from('notifications')
-            .select('read_by')
-            .eq('id', notificationId)
-            .single();
-        
-        var readBy = (notification && notification.read_by) || [];
-        if (!readBy.includes(userId)) {
-            readBy.push(userId);
-            
-            await supabaseClient
-                .from('notifications')
-                .update({ read_by: readBy })
-                .eq('id', notificationId);
-        }
-        
-        var item = document.querySelector('.message-item[data-id="' + notificationId + '"]');
-        if (item) {
-            item.classList.remove('unread');
-        }
-        
-        updateNotificationsBadge();
-        
-    } catch (error) {
-        console.error('Error marking notification as read:', error);
-    }
+    // Update badge count
+    updateNotificationsBadge();
 }
 
 async function markAllNotificationsAsRead() {
-    try {
-        if (!supabaseClient) return;
-        
-        var userId = getCurrentUserId();
-        var unreadItems = document.querySelectorAll('.message-item.unread');
-        
-        for (var i = 0; i < unreadItems.length; i++) {
-            var item = unreadItems[i];
-            var notificationId = item.dataset.id;
-            
-            var { data: notification } = await supabaseClient
-                .from('notifications')
-                .select('read_by')
-                .eq('id', notificationId)
-                .single();
-            
-            var readBy = (notification && notification.read_by) || [];
-            if (!readBy.includes(userId)) {
-                readBy.push(userId);
-                
-                await supabaseClient
-                    .from('notifications')
-                    .update({ read_by: readBy })
-                    .eq('id', notificationId);
-            }
-            
-            item.classList.remove('unread');
-        }
-        
-        updateNotificationsBadge();
-        showNotification('Success', 'All notifications marked as read');
-        
-    } catch (error) {
-        console.error('Error marking all as read:', error);
-        showNotification('Error updating notifications', 'error');
+    // Update last view time to now
+    localStorage.setItem('lastNotificationsView', new Date().toISOString());
+    
+    // Remove unread class from all items
+    var items = document.querySelectorAll('.message-item');
+    for (var i = 0; i < items.length; i++) {
+        items[i].classList.remove('unread');
     }
+    
+    // Update badge
+    updateNotificationsBadge();
+    showNotification('All notifications marked as read', 'success');
 }
 
 async function updateNotificationsBadge() {
     try {
         if (!supabaseClient) return;
         
-        var userId = getCurrentUserId();
+        // Get last view time
+        var lastView = localStorage.getItem('lastNotificationsView');
         
-        var { data, error } = await supabaseClient
+        // Build query
+        var query = supabaseClient
             .from('notifications')
-            .select('read_by')
+            .select('*', { count: 'exact', head: true })
             .eq('sent', true);
         
-        if (error) throw error;
+        // If we have a last view time, get only newer notifications
+        if (lastView) {
+            query = query.gt('created_at', lastView);
+        }
         
-        // Count notifications where user hasn't read them
-        var unreadCount = 0;
-        for (var i = 0; i < data.length; i++) {
-            if (!data[i].read_by || !data[i].read_by.includes(userId)) {
-                unreadCount++;
-            }
+        var { count, error } = await query;
+        
+        if (error) {
+            console.error('Error counting notifications:', error);
+            return;
         }
         
         var badge = document.getElementById('message-count');
         if (!badge) return;
         
-        if (unreadCount > 0) {
-            badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
+        if (count > 0) {
+            badge.textContent = count > 9 ? '9+' : count;
             badge.style.display = 'flex';
         } else {
             badge.style.display = 'none';
@@ -925,6 +887,41 @@ function closeMessagesModal() {
 function refreshNotifications() {
     loadNotifications();
     showNotification('Refreshed', 'Notifications updated');
+}
+
+function exportNotifications() {
+    var notifications = window.notifications || [];
+    
+    if (notifications.length === 0) {
+        showNotification('No notifications to export', 'warning');
+        return;
+    }
+    
+    // Convert notifications to CSV
+    var headers = ['Title', 'Message', 'Date'];
+    var csvRows = [
+        headers.join(','),
+        ...notifications.map(function(notification) {
+            return [
+                '"' + (notification.title || '') + '"',
+                '"' + (notification.message || notification.content || '') + '"',
+                '"' + new Date(notification.created_at).toLocaleString() + '"'
+            ].join(',');
+        })
+    ];
+    
+    var csvContent = csvRows.join('\n');
+    var blob = new Blob([csvContent], { type: 'text/csv' });
+    var url = window.URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'notifications_' + new Date().toISOString().split('T')[0] + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    showNotification('Notifications exported successfully', 'success');
 }
 
 // Contact action functions
@@ -978,11 +975,14 @@ window.openNotificationsModal = openNotificationsModal;
 window.closeMessagesModal = closeMessagesModal;
 window.markAllNotificationsAsRead = markAllNotificationsAsRead;
 window.refreshNotifications = refreshNotifications;
+window.exportNotifications = exportNotifications;
 window.callNow = callNow;
 window.sendEmail = sendEmail;
 window.openLocation = openLocation;
 window.openFacebook = openFacebook;
 window.openTwitter = openTwitter;
 window.openInstagram = openInstagram;
+window.markNotificationAsRead = markNotificationAsRead;
+window.updateNotificationsBadge = updateNotificationsBadge;
 
 console.log('Browser-compatible main script initialized');
