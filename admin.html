@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Starlink Token WiFi</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/admin.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<!-- rest of the admin.html remains the same -->
+<body class="admin-page">
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <div class="admin-sidebar">
+            <div class="admin-logo">
+                <img src="https://image2url.com/r2/default/images/1770561337315-920e5f5d-2254-4c03-8c95-c8eb7eac8442.jpg" alt="Logo">
+                <h2>Admin Panel</h2>
+            </div>
+            <ul class="admin-menu">
+                <li><a href="#" class="active" data-tab="dashboard"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+                <li><a href="#" data-tab="gallery"><i class="fas fa-images"></i> Gallery Management</a></li>
+                <li><a href="#" data-tab="bundles"><i class="fas fa-shopping-cart"></i> Bundle Updates</a></li>
+                <li><a href="#" data-tab="messages"><i class="fas fa-envelope"></i> Messages</a></li>
+                <li><a href="#" data-tab="site"><i class="fas fa-cog"></i> Site Settings</a></li>
+                <li><a href="index.html"><i class="fas fa-home"></i> Back to Site</a></li>
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div class="admin-main">
+            <div class="admin-header">
+                <h1>Admin Dashboard</h1>
+                <div class="admin-actions">
+                    <button id="logout-btn" class="btn btn-danger">Logout</button>
+                </div>
+            </div>
+
+            <!-- Dashboard Tab -->
+            <div id="dashboard" class="admin-tab active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Total Messages</h3>
+                        <p id="total-messages">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Gallery Items</h3>
+                        <p id="total-images">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Site Updates</h3>
+                        <p id="total-updates">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Today's Activity</h3>
+                        <p id="today-activity">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gallery Management Tab -->
+            <div id="gallery" class="admin-tab">
+                <h2>Gallery Management</h2>
+                <div class="upload-section">
+                    <h3>Upload New Image</h3>
+                    <div class="upload-form">
+                        <div class="form-group">
+                            <label for="image-upload">Select Image</label>
+                            <input type="file" id="image-upload" accept="image/*" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="image-title">Image Title</label>
+                            <input type="text" id="image-title" placeholder="Enter image title" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="image-description">Description</label>
+                            <textarea id="image-description" placeholder="Enter image description" class="form-control"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="image-category">Category</label>
+                            <select id="image-category" class="form-control">
+                                <option value="general">General</option>
+                                <option value="installation">Installation</option>
+                                <option value="business">Business</option>
+                                <option value="home">Home</option>
+                                <option value="projects">Projects</option>
+                            </select>
+                        </div>
+                        <div class="form-actions">
+                            <button id="upload-btn" class="btn btn-primary">
+                                <i class="fas fa-upload"></i> Upload Image
+                            </button>
+                            <button id="clear-upload-form" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Clear
+                            </button>
+                        </div>
+                        <div id="upload-progress" class="progress-container"></div>
+                    </div>
+                </div>
+                
+                <div class="gallery-management">
+                    <h3>Existing Images</h3>
+                    <div id="admin-gallery" class="admin-gallery-grid">
+                        <!-- Images will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bundle Updates Tab -->
+            <div id="bundles" class="admin-tab">
+                <h2>Update Data Bundles</h2>
+                <div class="bundles-management">
+                    <div class="bundle-form">
+                        <h3>Edit Bundle</h3>
+                        <select id="bundle-select">
+                            <option value="daily">Daily Bundle</option>
+                            <option value="weekly">Weekly Bundle</option>
+                            <option value="monthly">Monthly Bundle</option>
+                            <option value="business">Business Bundle</option>
+                        </select>
+                        <input type="text" id="bundle-name" placeholder="Bundle Name">
+                        <input type="number" id="bundle-price" placeholder="Price (KSh)">
+                        <textarea id="bundle-features" placeholder="Features (one per line)"></textarea>
+                        <button id="update-bundle" class="btn">Update Bundle</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Messages Tab -->
+            <div id="messages" class="admin-tab">
+                <h2>Contact Messages</h2>
+                <div class="messages-list" id="messages-list">
+                    <!-- Messages will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Site Settings Tab -->
+            <div id="site" class="admin-tab">
+                <h2>Site Settings</h2>
+                <div class="site-settings">
+                    <div class="setting-group">
+                        <h3>Email Notifications</h3>
+                        <div class="notification-controls">
+                            <label class="switch">
+                                <input type="checkbox" id="email-notifications" checked>
+                                <span class="slider"></span>
+                                <span class="label-text">Enable Email Notifications</span>
+                            </label>
+                            <button id="test-notification" class="btn btn-secondary">
+                                <i class="fas fa-bell"></i> Send Test Notification
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-group">
+                        <h3>Site Updates</h3>
+                        <div class="update-form">
+                            <div class="form-group">
+                                <label for="update-title">Update Title</label>
+                                <input type="text" id="update-title" placeholder="Enter update title" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label for="update-content">Update Message</label>
+                                <textarea id="update-content" placeholder="Enter update message for users..." class="form-control" rows="4"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="update-priority">Priority</label>
+                                <select id="update-priority" class="form-control">
+                                    <option value="low">Low</option>
+                                    <option value="normal" selected>Normal</option>
+                                    <option value="high">High</option>
+                                    <option value="urgent">Urgent</option>
+                                </select>
+                            </div>
+                            <div class="form-actions">
+                                <button id="push-update" class="btn btn-primary">
+                                    <i class="fas fa-paper-plane"></i> Send Update
+                                </button>
+                                <button id="clear-update-form" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-group">
+                        <h3>System Maintenance</h3>
+                        <div class="maintenance-controls">
+                            <button id="clear-cache" class="btn btn-warning">
+                                <i class="fas fa-broom"></i> Clear All Cache
+                            </button>
+                            <button id="export-data" class="btn btn-info">
+                                <i class="fas fa-download"></i> Export Data
+                            </button>
+                            <button id="view-emails" class="btn btn-secondary">
+                                <i class="fas fa-envelope"></i> View Sent Emails
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Scripts -->
+    <script src="js/admin-simple.js"></script>
+    <script src="js/email-browser.js"></script>
+</body>
+</html>
