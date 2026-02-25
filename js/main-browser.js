@@ -70,27 +70,29 @@ function closeGalleryModal() {
 }
 
 // Initialize main functionality
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, initializing main functions...');
     
     // Initialize Supabase first
-    const supabaseInitialized = initializeSupabase();
+    var supabaseInitialized = initializeSupabase();
     
     // Mobile menu toggle
-    const mobileMenu = document.querySelector('.mobile-menu');
-    const navLinks = document.querySelector('.nav-links');
+    var mobileMenu = document.querySelector('.mobile-menu');
+    var navLinks = document.querySelector('.nav-links');
     
     if (mobileMenu && navLinks) {
-        mobileMenu.addEventListener('click', () => {
+        mobileMenu.addEventListener('click', function() {
             navLinks.classList.toggle('active');
-            mobileMenu.innerHTML = navLinks.classList.contains('active') 
-                ? '<i class="fas fa-times"></i>' 
-                : '<i class="fas fa-bars"></i>';
+            if (navLinks.classList.contains('active')) {
+                mobileMenu.innerHTML = '<i class="fas fa-times"></i>';
+            } else {
+                mobileMenu.innerHTML = '<i class="fas fa-bars"></i>';
+            }
         });
     }
 
-    // Fix messages notification button - direct click handler for button element
-    const messagesBtn = document.getElementById('messages-notification');
+    // Fix messages notification button
+    var messagesBtn = document.getElementById('messages-notification');
     if (messagesBtn) {
         // Remove any existing handlers
         messagesBtn.onclick = null;
@@ -99,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
         messagesBtn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            console.log('Messages button clicked'); // Debug log
+            console.log('Messages button clicked');
             
             // Open notifications modal
             if (typeof openNotificationsModal === 'function') {
@@ -111,12 +113,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // Smooth scrolling for anchor links only
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    var anchors = document.querySelectorAll('a[href^="#"]');
+    for (var i = 0; i < anchors.length; i++) {
+        var anchor = anchors[i];
         anchor.addEventListener('click', function(e) {
-            if (this.getAttribute('href').startsWith('#') && 
-                this.getAttribute('href') !== '#') {
+            var href = this.getAttribute('href');
+            if (href.startsWith('#') && href !== '#') {
                 e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
+                var target = document.querySelector(href);
                 if (target) {
                     target.scrollIntoView({
                         behavior: 'smooth',
@@ -125,7 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
-    });
+    }
 
     // Load bundles and gallery preview (only if Supabase is available)
     if (supabaseInitialized) {
@@ -140,33 +144,29 @@ document.addEventListener('DOMContentLoaded', () => {
         showSupabaseError();
     }
     
-    // Set up contact form (sends to email, not database)
+    // Set up contact form
     setupContactForm();
 });
 
 function showSupabaseError() {
     // Show error in bundles and gallery sections
-    const bundlesContainer = document.getElementById('bundles-container');
-    const previewContainer = document.getElementById('gallery-preview-container');
+    var bundlesContainer = document.getElementById('bundles-container');
+    var previewContainer = document.getElementById('gallery-preview-container');
     
     if (bundlesContainer) {
-        bundlesContainer.innerHTML = `
-            <div style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
-                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
-                <h3>Connection Error</h3>
-                <p>Unable to connect to server. Please refresh the page.</p>
-            </div>
-        `;
+        bundlesContainer.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 3rem;">' +
+            '<i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>' +
+            '<h3>Connection Error</h3>' +
+            '<p>Unable to connect to server. Please refresh the page.</p>' +
+            '</div>';
     }
     
     if (previewContainer) {
-        previewContainer.innerHTML = `
-            <div style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
-                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
-                <h3>Connection Error</h3>
-                <p>Unable to load gallery. Please refresh the page.</p>
-            </div>
-        `;
+        previewContainer.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 3rem;">' +
+            '<i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>' +
+            '<h3>Connection Error</h3>' +
+            '<p>Unable to load gallery. Please refresh the page.</p>' +
+            '</div>';
     }
 }
 
@@ -176,9 +176,9 @@ async function checkForNewNotifications() {
         if (!supabaseClient) return;
         
         // Get the last checked time from localStorage
-        const lastChecked = localStorage.getItem('lastNotificationCheck') || new Date(0).toISOString();
+        var lastChecked = localStorage.getItem('lastNotificationCheck') || new Date(0).toISOString();
         
-        const { data, error } = await supabaseClient
+        var { data, error } = await supabaseClient
             .from('notifications')
             .select('*')
             .eq('sent', true)
@@ -187,14 +187,14 @@ async function checkForNewNotifications() {
         
         if (!error && data && data.length > 0) {
             // Show notification for new updates
-            const latestNotification = data[0];
+            var latestNotification = data[0];
             showNotification('New Update', latestNotification.message || latestNotification.content);
             
             // Update notifications badge
             updateNotificationsBadge();
             
             // Reload notifications if modal is open
-            const modal = document.getElementById('messagesModal');
+            var modal = document.getElementById('messagesModal');
             if (modal && modal.style.display === 'block') {
                 displayNotifications(data);
             }
@@ -209,14 +209,14 @@ async function checkForNewNotifications() {
 
 // Function to show notification toast
 function showNotification(title, message) {
-    const toast = document.getElementById('notification-toast');
-    const messageElement = document.getElementById('notification-message');
+    var toast = document.getElementById('notification-toast');
+    var messageElement = document.getElementById('notification-message');
     
     if (toast && messageElement) {
-        messageElement.innerHTML = `<strong>${title}:</strong> ${message}`;
+        messageElement.innerHTML = '<strong>' + title + ':</strong> ' + message;
         toast.classList.add('show');
         
-        setTimeout(() => {
+        setTimeout(function() {
             toast.classList.remove('show');
         }, 5000);
     }
@@ -224,38 +224,41 @@ function showNotification(title, message) {
 
 // Function to close notification
 function closeNotification() {
-    const toast = document.getElementById('notification-toast');
+    var toast = document.getElementById('notification-toast');
     if (toast) {
         toast.classList.remove('show');
     }
 }
 
-// Setup contact form submission (sends to email only)
+// Setup contact form submission
 function setupContactForm() {
-    const form = document.getElementById('contact-form');
+    var form = document.getElementById('contact-form');
     if (form) {
-        form.addEventListener('submit', async (e) => {
+        form.addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const name = document.getElementById('name').value;
-            const email = document.getElementById('email').value;
-            const phone = document.getElementById('phone').value;
-            const service = document.getElementById('service').value;
-            const message = document.getElementById('message').value;
-            const formMessage = document.getElementById('form-message');
+            var name = document.getElementById('name').value;
+            var email = document.getElementById('email').value;
+            var phone = document.getElementById('phone').value;
+            var service = document.getElementById('service').value;
+            var message = document.getElementById('message').value;
+            var formMessage = document.getElementById('form-message');
             
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
+            var submitBtn = form.querySelector('button[type="submit"]');
+            var originalText = submitBtn.innerHTML;
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
             submitBtn.disabled = true;
             
             try {
                 // Determine backend URL based on environment
-                const backendUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-                    ? 'http://localhost:3000'
-                    : 'https://starlink-wifi-backend-v862.onrender.com';
+                var backendUrl;
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                    backendUrl = 'http://localhost:3000';
+                } else {
+                    backendUrl = 'https://starlink-wifi-backend-v862.onrender.com';
+                }
                 
-                const response = await fetch(`${backendUrl}/api/contact`, {
+                var response = await fetch(backendUrl + '/api/contact', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -269,7 +272,7 @@ function setupContactForm() {
                     })
                 });
                 
-                const result = await response.json();
+                var result = await response.json();
                 
                 if (response.ok && result.success) {
                     formMessage.innerHTML = '<p class="success">Message sent successfully! We\'ll contact you soon.</p>';
@@ -288,7 +291,7 @@ function setupContactForm() {
                 submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
                 
-                setTimeout(() => {
+                setTimeout(function() {
                     formMessage.innerHTML = '';
                 }, 5000);
             }
@@ -298,18 +301,16 @@ function setupContactForm() {
 
 // Load bundles from Supabase
 async function loadBundles() {
-    const bundlesContainer = document.getElementById('bundles-container');
+    var bundlesContainer = document.getElementById('bundles-container');
     
     if (!bundlesContainer) return;
     
     // Show loading state
-    bundlesContainer.innerHTML = `
-        <div style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
-            <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #3b82f6; margin-bottom: 1rem;"></i>
-            <h3>Loading Bundles...</h3>
-            <p>Please wait while we fetch the latest packages</p>
-        </div>
-    `;
+    bundlesContainer.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 3rem;">' +
+        '<i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #3b82f6; margin-bottom: 1rem;"></i>' +
+        '<h3>Loading Bundles...</h3>' +
+        '<p>Please wait while we fetch the latest packages</p>' +
+        '</div>';
     
     try {
         if (!supabaseClient) {
@@ -317,7 +318,7 @@ async function loadBundles() {
         }
         
         // Fetch bundles from Supabase
-        const { data, error } = await supabaseClient
+        var { data, error } = await supabaseClient
             .from('bundles')
             .select('*')
             .eq('visible', true)
@@ -331,83 +332,83 @@ async function loadBundles() {
         
         if (!data || data.length === 0) {
             // Show empty state
-            bundlesContainer.innerHTML = `
-                <div style="grid-column: 1 / -1; text-align: center; padding: 4rem;">
-                    <i class="fas fa-box-open" style="font-size: 3rem; color: #9ca3af; margin-bottom: 1rem;"></i>
-                    <h3>No Bundles Available</h3>
-                    <p>Please check back later for our internet packages</p>
-                </div>
-            `;
+            bundlesContainer.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 4rem;">' +
+                '<i class="fas fa-box-open" style="font-size: 3rem; color: #9ca3af; margin-bottom: 1rem;"></i>' +
+                '<h3>No Bundles Available</h3>' +
+                '<p>Please check back later for our internet packages</p>' +
+                '</div>';
             return;
         }
         
         // Display bundles from Supabase
-        data.forEach(bundle => {
+        for (var i = 0; i < data.length; i++) {
+            var bundle = data[i];
             bundlesContainer.appendChild(createBundleCard(bundle, bundle.id));
-        });
+        }
         
     } catch (error) {
         console.error('Error loading bundles:', error);
-        bundlesContainer.innerHTML = `
-            <div class="no-bundles" style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
-                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
-                <h3>Unable to Load Bundles</h3>
-                <p>${error.message || 'Please try again later'}</p>
-                <button onclick="loadBundles()" class="btn btn-secondary" style="margin-top: 1rem;">
-                    <i class="fas fa-redo"></i> Retry
-                </button>
-            </div>
-        `;
+        bundlesContainer.innerHTML = '<div class="no-bundles" style="grid-column: 1 / -1; text-align: center; padding: 3rem;">' +
+            '<i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>' +
+            '<h3>Unable to Load Bundles</h3>' +
+            '<p>' + (error.message || 'Please try again later') + '</p>' +
+            '<button onclick="loadBundles()" class="btn btn-secondary" style="margin-top: 1rem;">' +
+            '<i class="fas fa-redo"></i> Retry' +
+            '</button>' +
+            '</div>';
     }
 }
 
 function createBundleCard(bundle, key) {
-    const bundleCard = document.createElement('div');
-    bundleCard.className = `bundle-card ${bundle.featured ? 'featured' : ''}`;
+    var bundleCard = document.createElement('div');
+    bundleCard.className = 'bundle-card';
+    if (bundle.featured) {
+        bundleCard.className += ' featured';
+    }
     
-    // Handle features - could be array or comma-separated string
-    let featuresList = '';
+    // Handle features
+    var featuresList = '';
     if (bundle.features) {
         if (Array.isArray(bundle.features)) {
-            featuresList = bundle.features.map(feature => `<li><i class="fas fa-check"></i> ${feature}</li>`).join('');
+            for (var i = 0; i < bundle.features.length; i++) {
+                featuresList += '<li><i class="fas fa-check"></i> ' + bundle.features[i] + '</li>';
+            }
         } else if (typeof bundle.features === 'string') {
-            const featuresArray = bundle.features.split(',').map(f => f.trim());
-            featuresList = featuresArray.map(feature => `<li><i class="fas fa-check"></i> ${feature}</li>`).join('');
+            var featuresArray = bundle.features.split(',').map(function(f) { return f.trim(); });
+            for (var i = 0; i < featuresArray.length; i++) {
+                featuresList += '<li><i class="fas fa-check"></i> ' + featuresArray[i] + '</li>';
+            }
         }
     }
     
-    bundleCard.innerHTML = `
-        <h3>${bundle.name || 'Bundle'}</h3>
-        <div class="price">KSh ${bundle.price || '0'}</div>
-        <ul>${featuresList}</ul>
-        <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="selectBundle('${key}')">
-            <i class="fas fa-shopping-cart"></i> Select Package
-        </button>
-    `;
+    bundleCard.innerHTML = '<h3>' + (bundle.name || 'Bundle') + '</h3>' +
+        '<div class="price">KSh ' + (bundle.price || '0') + '</div>' +
+        '<ul>' + featuresList + '</ul>' +
+        '<button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="selectBundle(\'' + key + '\')">' +
+        '<i class="fas fa-shopping-cart"></i> Select Package' +
+        '</button>';
     
     return bundleCard;
 }
 
-// Load gallery preview from Supabase with error handling for images
+// Load gallery preview from Supabase
 async function loadGalleryPreview() {
-    const previewContainer = document.getElementById('gallery-preview-container');
+    var previewContainer = document.getElementById('gallery-preview-container');
     
     if (!previewContainer) return;
     
-    previewContainer.innerHTML = `
-        <div class="loading-gallery">
-            <div class="loading-item"></div>
-            <div class="loading-item"></div>
-            <div class="loading-item"></div>
-        </div>
-    `;
+    previewContainer.innerHTML = '<div class="loading-gallery">' +
+        '<div class="loading-item"></div>' +
+        '<div class="loading-item"></div>' +
+        '<div class="loading-item"></div>' +
+        '</div>';
     
     try {
         if (!supabaseClient) {
             throw new Error('Supabase client not initialized');
         }
         
-        const { data, error } = await supabaseClient
+        var { data, error } = await supabaseClient
             .from('gallery')
             .select('id, title, description, category, image_url, visible')
             .eq('visible', true)
@@ -421,46 +422,41 @@ async function loadGalleryPreview() {
         previewContainer.innerHTML = '';
         
         if (!data || data.length === 0) {
-            previewContainer.innerHTML = `
-                <div style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
-                    <i class="fas fa-images" style="font-size: 3rem; color: #9ca3af; margin-bottom: 1rem;"></i>
-                    <h3>No Gallery Items Yet</h3>
-                    <p>Check back soon for project images</p>
-                </div>
-            `;
+            previewContainer.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 3rem;">' +
+                '<i class="fas fa-images" style="font-size: 3rem; color: #9ca3af; margin-bottom: 1rem;"></i>' +
+                '<h3>No Gallery Items Yet</h3>' +
+                '<p>Check back soon for project images</p>' +
+                '</div>';
             return;
         }
         
-        // Load each gallery item with image error handling
-        const loadPromises = data.map(async (item) => {
-            const element = await createGalleryPreviewItem(item, item.id);
+        // Load each gallery item
+        for (var i = 0; i < data.length; i++) {
+            var item = data[i];
+            var element = await createGalleryPreviewItem(item, item.id);
             previewContainer.appendChild(element);
-        });
-        
-        await Promise.all(loadPromises);
+        }
         
     } catch (error) {
         console.error('Error loading gallery preview:', error);
-        previewContainer.innerHTML = `
-            <div style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
-                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
-                <h3>Unable to Load Gallery</h3>
-                <p>${error.message || 'Please try again later'}</p>
-                <button onclick="loadGalleryPreview()" class="btn btn-secondary" style="margin-top: 1rem;">
-                    <i class="fas fa-redo"></i> Retry
-                </button>
-            </div>
-        `;
+        previewContainer.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 3rem;">' +
+            '<i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>' +
+            '<h3>Unable to Load Gallery</h3>' +
+            '<p>' + (error.message || 'Please try again later') + '</p>' +
+            '<button onclick="loadGalleryPreview()" class="btn btn-secondary" style="margin-top: 1rem;">' +
+            '<i class="fas fa-redo"></i> Retry' +
+            '</button>' +
+            '</div>';
     }
 }
 
 function createGalleryPreviewItem(item, key) {
-    return new Promise((resolve) => {
-        const galleryItem = document.createElement('div');
+    return new Promise(function(resolve) {
+        var galleryItem = document.createElement('div');
         galleryItem.className = 'gallery-preview-item';
         
-        const imageUrl = item.image_url || item.url;
-        const img = document.createElement('img');
+        var imageUrl = item.image_url || item.url;
+        var img = document.createElement('img');
         img.alt = item.title || 'Project Image';
         img.loading = 'lazy';
         
@@ -468,7 +464,8 @@ function createGalleryPreviewItem(item, key) {
         img.onerror = function() {
             console.warn('Failed to load image:', imageUrl);
             this.src = 'https://via.placeholder.com/400x300?text=Image+Not+Available';
-            this.onerror = null; // Prevent infinite loop
+            this.onerror = null;
+            resolve(galleryItem);
         };
         
         img.onload = function() {
@@ -477,12 +474,19 @@ function createGalleryPreviewItem(item, key) {
         
         img.src = imageUrl;
         
-        const overlay = document.createElement('div');
+        var overlay = document.createElement('div');
         overlay.style.cssText = 'position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.7); color: white; padding: 1rem;';
-        overlay.innerHTML = `
-            <h4 style="margin: 0; font-size: 1rem;">${item.title || 'Project'}</h4>
-            <p style="margin: 0.5rem 0 0; font-size: 0.875rem; opacity: 0.9;">${item.description ? item.description.substring(0, 100) + (item.description.length > 100 ? '...' : '') : ''}</p>
-        `;
+        
+        var description = '';
+        if (item.description) {
+            description = item.description.substring(0, 100);
+            if (item.description.length > 100) {
+                description += '...';
+            }
+        }
+        
+        overlay.innerHTML = '<h4 style="margin: 0; font-size: 1rem;">' + (item.title || 'Project') + '</h4>' +
+            '<p style="margin: 0.5rem 0 0; font-size: 0.875rem; opacity: 0.9;">' + description + '</p>';
         
         galleryItem.appendChild(img);
         galleryItem.appendChild(overlay);
@@ -496,23 +500,21 @@ function createGalleryPreviewItem(item, key) {
 
 // Load full gallery for modal from Supabase
 async function loadFullGallery() {
-    const modalContainer = document.getElementById('modalGalleryContainer');
+    var modalContainer = document.getElementById('modalGalleryContainer');
     
     if (!modalContainer) return;
     
-    modalContainer.innerHTML = `
-        <div style="grid-column: 1 / -1; text-align: center; padding: 4rem;">
-            <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #3b82f6;"></i>
-            <p>Loading gallery images...</p>
-        </div>
-    `;
+    modalContainer.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 4rem;">' +
+        '<i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #3b82f6;"></i>' +
+        '<p>Loading gallery images...</p>' +
+        '</div>';
     
     try {
         if (!supabaseClient) {
             throw new Error('Supabase client not initialized');
         }
         
-        const { data, error } = await supabaseClient
+        var { data, error } = await supabaseClient
             .from('gallery')
             .select('id, title, description, category, image_url, visible')
             .eq('visible', true)
@@ -525,48 +527,44 @@ async function loadFullGallery() {
         modalContainer.innerHTML = '';
         
         if (!data || data.length === 0) {
-            modalContainer.innerHTML = `
-                <div style="grid-column: 1 / -1; text-align: center; padding: 4rem;">
-                    <i class="fas fa-images" style="font-size: 3rem; color: #9ca3af; margin-bottom: 1rem;"></i>
-                    <h3>No Gallery Items Available</h3>
-                    <p>Check back soon for project images</p>
-                </div>
-            `;
+            modalContainer.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 4rem;">' +
+                '<i class="fas fa-images" style="font-size: 3rem; color: #9ca3af; margin-bottom: 1rem;"></i>' +
+                '<h3>No Gallery Items Available</h3>' +
+                '<p>Check back soon for project images</p>' +
+                '</div>';
             return;
         }
         
         // Load all gallery items
-        const loadPromises = data.map(async (item, index) => {
-            const element = await createModalGalleryItem(item, `full-${item.id}-${index}`);
+        for (var i = 0; i < data.length; i++) {
+            var item = data[i];
+            var element = await createModalGalleryItem(item, 'full-' + item.id + '-' + i);
             modalContainer.appendChild(element);
-        });
+        }
         
-        await Promise.all(loadPromises);
         setupGalleryFilters();
         
     } catch (error) {
         console.error('Error loading full gallery:', error);
-        modalContainer.innerHTML = `
-            <div style="grid-column: 1 / -1; text-align: center; padding: 4rem;">
-                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
-                <h3>Unable to Load Gallery</h3>
-                <p>${error.message || 'Please try again later'}</p>
-                <button onclick="loadFullGallery()" class="btn btn-secondary" style="margin-top: 1rem;">
-                    <i class="fas fa-redo"></i> Retry
-                </button>
-            </div>
-        `;
+        modalContainer.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 4rem;">' +
+            '<i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>' +
+            '<h3>Unable to Load Gallery</h3>' +
+            '<p>' + (error.message || 'Please try again later') + '</p>' +
+            '<button onclick="loadFullGallery()" class="btn btn-secondary" style="margin-top: 1rem;">' +
+            '<i class="fas fa-redo"></i> Retry' +
+            '</button>' +
+            '</div>';
     }
 }
 
 function createModalGalleryItem(item, key) {
-    return new Promise((resolve) => {
-        const galleryItem = document.createElement('div');
+    return new Promise(function(resolve) {
+        var galleryItem = document.createElement('div');
         galleryItem.className = 'modal-gallery-item';
         galleryItem.dataset.filter = item.category || 'all';
         
-        const imageUrl = item.image_url || item.url;
-        const img = document.createElement('img');
+        var imageUrl = item.image_url || item.url;
+        var img = document.createElement('img');
         img.alt = item.title || 'Project Image';
         img.loading = 'lazy';
         img.dataset.fullSrc = imageUrl;
@@ -587,7 +585,7 @@ function createModalGalleryItem(item, key) {
         
         galleryItem.appendChild(img);
         
-        galleryItem.addEventListener('click', () => {
+        galleryItem.addEventListener('click', function() {
             showFullImage(imageUrl, item.title || 'Project Image');
         });
         
@@ -600,30 +598,28 @@ function createModalGalleryItem(item, key) {
 
 // Function to show full-size image in modal
 function showFullImage(imageUrl, title) {
-    let fullImageModal = document.getElementById('fullImageModal');
+    var fullImageModal = document.getElementById('fullImageModal');
     if (!fullImageModal) {
         fullImageModal = document.createElement('div');
         fullImageModal.id = 'fullImageModal';
         fullImageModal.className = 'full-image-modal';
-        fullImageModal.innerHTML = `
-            <div class="full-image-container">
-                <button class="full-image-close" id="fullImageClose">
-                    <i class="fas fa-times"></i>
-                </button>
-                <img id="fullImage" src="" alt="" style="max-width: 90%; max-height: 90%; object-fit: contain;">
-            </div>
-        `;
+        fullImageModal.innerHTML = '<div class="full-image-container">' +
+            '<button class="full-image-close" id="fullImageClose">' +
+            '<i class="fas fa-times"></i>' +
+            '</button>' +
+            '<img id="fullImage" src="" alt="" style="max-width: 90%; max-height: 90%; object-fit: contain;">' +
+            '</div>';
         document.body.appendChild(fullImageModal);
         
         document.getElementById('fullImageClose').addEventListener('click', closeFullImage);
-        fullImageModal.addEventListener('click', (e) => {
+        fullImageModal.addEventListener('click', function(e) {
             if (e.target === fullImageModal) {
                 closeFullImage();
             }
         });
     }
     
-    const fullImage = document.getElementById('fullImage');
+    var fullImage = document.getElementById('fullImage');
     fullImage.src = imageUrl;
     fullImage.alt = title;
     
@@ -638,7 +634,7 @@ function showFullImage(imageUrl, title) {
 
 // Function to close full image modal
 function closeFullImage() {
-    const fullImageModal = document.getElementById('fullImageModal');
+    var fullImageModal = document.getElementById('fullImageModal');
     if (fullImageModal) {
         fullImageModal.style.display = 'none';
         document.body.style.overflow = 'auto';
@@ -646,57 +642,61 @@ function closeFullImage() {
 }
 
 function setupGalleryFilters() {
-    const filterButtons = document.querySelectorAll('.filter-btn');
+    var filterButtons = document.querySelectorAll('.filter-btn');
     
-    filterButtons.forEach(button => {
-        button.addEventListener('click', (e) => {
-            const filter = e.target.dataset.filter;
+    for (var i = 0; i < filterButtons.length; i++) {
+        var button = filterButtons[i];
+        button.addEventListener('click', function(e) {
+            var filter = e.target.dataset.filter;
             
-            filterButtons.forEach(btn => btn.classList.remove('active'));
+            for (var j = 0; j < filterButtons.length; j++) {
+                filterButtons[j].classList.remove('active');
+            }
             e.target.classList.add('active');
             
             filterGalleryItems(filter);
         });
-    });
+    }
 }
 
 function filterGalleryItems(filter) {
-    const galleryItems = document.querySelectorAll('.modal-gallery-item');
+    var galleryItems = document.querySelectorAll('.modal-gallery-item');
     
-    galleryItems.forEach(item => {
-        const itemFilter = item.dataset.filter || 'all';
+    for (var i = 0; i < galleryItems.length; i++) {
+        var item = galleryItems[i];
+        var itemFilter = item.dataset.filter || 'all';
         
         if (filter === 'all' || itemFilter === filter) {
             item.style.display = 'block';
-            setTimeout(() => {
+            setTimeout(function() {
                 item.style.opacity = '1';
             }, 100);
         } else {
             item.style.opacity = '0';
-            setTimeout(() => {
+            setTimeout(function() {
                 item.style.display = 'none';
             }, 300);
         }
-    });
+    }
 }
 
 // Bundle selection
 function selectBundle(bundleId) {
-    alert(`Thank you for selecting bundle ${bundleId}! Our sales team will contact you shortly.`);
+    alert('Thank you for selecting bundle ' + bundleId + '! Our sales team will contact you shortly.');
     openWhatsApp();
 }
 
 // WhatsApp contact function
 function openWhatsApp() {
-    const phoneNumber = '254740851330';
-    const message = 'Hello! I am interested in your WiFi bundles. Please contact me.';
-    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+    var phoneNumber = '254740851330';
+    var message = 'Hello! I am interested in your WiFi bundles. Please contact me.';
+    var whatsappUrl = 'https://wa.me/' + phoneNumber + '?text=' + encodeURIComponent(message);
     window.open(whatsappUrl, '_blank');
 }
 
-// NOTIFICATIONS FUNCTIONS (for admin updates)
+// NOTIFICATIONS FUNCTIONS
 async function loadNotifications() {
-    const container = document.getElementById('messagesContainer');
+    var container = document.getElementById('messagesContainer');
     if (!container) return;
     
     container.innerHTML = '<div style="text-align: center; padding: 2rem;"><i class="fas fa-spinner fa-spin"></i> Loading notifications...</div>';
@@ -706,7 +706,7 @@ async function loadNotifications() {
             throw new Error('Supabase client not initialized');
         }
         
-        const { data, error } = await supabaseClient
+        var { data, error } = await supabaseClient
             .from('notifications')
             .select('*')
             .eq('sent', true)
@@ -721,53 +721,52 @@ async function loadNotifications() {
         
     } catch (error) {
         console.error('Error loading notifications:', error);
-        container.innerHTML = `
-            <div class="no-messages">
-                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
-                <h3>Error Loading Notifications</h3>
-                <p>${error.message || 'Please try again later'}</p>
-                <button onclick="loadNotifications()" class="btn btn-secondary" style="margin-top: 1rem;">
-                    <i class="fas fa-redo"></i> Retry
-                </button>
-            </div>
-        `;
+        container.innerHTML = '<div class="no-messages">' +
+            '<i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>' +
+            '<h3>Error Loading Notifications</h3>' +
+            '<p>' + (error.message || 'Please try again later') + '</p>' +
+            '<button onclick="loadNotifications()" class="btn btn-secondary" style="margin-top: 1rem;">' +
+            '<i class="fas fa-redo"></i> Retry' +
+            '</button>' +
+            '</div>';
     }
 }
 
 function displayNotifications(notifications) {
-    const container = document.getElementById('messagesContainer');
+    var container = document.getElementById('messagesContainer');
     
     if (!container) return;
     
     if (!notifications || notifications.length === 0) {
-        container.innerHTML = `
-            <div class="no-messages">
-                <i class="fas fa-bell-slash" style="font-size: 3rem; color: #ccc; margin-bottom: 1rem;"></i>
-                <p>No notifications yet</p>
-            </div>
-        `;
+        container.innerHTML = '<div class="no-messages">' +
+            '<i class="fas fa-bell-slash" style="font-size: 3rem; color: #ccc; margin-bottom: 1rem;"></i>' +
+            '<p>No notifications yet</p>' +
+            '</div>';
         return;
     }
     
-    let html = '';
-    notifications.forEach(notification => {
-        const time = new Date(notification.created_at).toLocaleString();
-        const isNew = !notification.read_by?.includes(getCurrentUserId());
+    var html = '';
+    for (var i = 0; i < notifications.length; i++) {
+        var notification = notifications[i];
+        var time = new Date(notification.created_at).toLocaleString();
+        var isNew = !notification.read_by || !notification.read_by.includes(getCurrentUserId());
         
-        html += `
-            <div class="message-item ${isNew ? 'unread' : ''}" data-id="${notification.id}" onclick="markNotificationAsRead('${notification.id}')">
-                <div class="message-header">
-                    <div class="message-sender">
-                        <i class="fas fa-bullhorn" style="color: #3b82f6; margin-right: 0.5rem;"></i>
-                        Admin Update
-                    </div>
-                    <div class="message-time">${time}</div>
-                </div>
-                ${notification.title ? `<div style="font-weight: bold; margin: 0.5rem 0; color: #333;">${notification.title}</div>` : ''}
-                <div class="message-content">${notification.message || notification.content || ''}</div>
-            </div>
-        `;
-    });
+        html += '<div class="message-item ' + (isNew ? 'unread' : '') + '" data-id="' + notification.id + '" onclick="markNotificationAsRead(\'' + notification.id + '\')">' +
+            '<div class="message-header">' +
+            '<div class="message-sender">' +
+            '<i class="fas fa-bullhorn" style="color: #3b82f6; margin-right: 0.5rem;"></i>' +
+            'Admin Update' +
+            '</div>' +
+            '<div class="message-time">' + time + '</div>' +
+            '</div>';
+        
+        if (notification.title) {
+            html += '<div style="font-weight: bold; margin: 0.5rem 0; color: #333;">' + notification.title + '</div>';
+        }
+        
+        html += '<div class="message-content">' + (notification.message || notification.content || '') + '</div>' +
+            '</div>';
+    }
     
     container.innerHTML = html;
     
@@ -777,7 +776,7 @@ function displayNotifications(notifications) {
 
 // Helper function to get current user ID
 function getCurrentUserId() {
-    let userId = localStorage.getItem('userId');
+    var userId = localStorage.getItem('userId');
     if (!userId) {
         userId = 'user_' + Math.random().toString(36).substr(2, 9);
         localStorage.setItem('userId', userId);
@@ -789,16 +788,16 @@ async function markNotificationAsRead(notificationId) {
     try {
         if (!supabaseClient) return;
         
-        const userId = getCurrentUserId();
+        var userId = getCurrentUserId();
         
         // Get current notification
-        const { data: notification } = await supabaseClient
+        var { data: notification } = await supabaseClient
             .from('notifications')
             .select('read_by')
             .eq('id', notificationId)
             .single();
         
-        const readBy = notification?.read_by || [];
+        var readBy = (notification && notification.read_by) || [];
         if (!readBy.includes(userId)) {
             readBy.push(userId);
             
@@ -808,7 +807,7 @@ async function markNotificationAsRead(notificationId) {
                 .eq('id', notificationId);
         }
         
-        const item = document.querySelector(`.message-item[data-id="${notificationId}"]`);
+        var item = document.querySelector('.message-item[data-id="' + notificationId + '"]');
         if (item) {
             item.classList.remove('unread');
         }
@@ -824,19 +823,20 @@ async function markAllNotificationsAsRead() {
     try {
         if (!supabaseClient) return;
         
-        const userId = getCurrentUserId();
-        const unreadItems = document.querySelectorAll('.message-item.unread');
+        var userId = getCurrentUserId();
+        var unreadItems = document.querySelectorAll('.message-item.unread');
         
-        for (const item of unreadItems) {
-            const notificationId = item.dataset.id;
+        for (var i = 0; i < unreadItems.length; i++) {
+            var item = unreadItems[i];
+            var notificationId = item.dataset.id;
             
-            const { data: notification } = await supabaseClient
+            var { data: notification } = await supabaseClient
                 .from('notifications')
                 .select('read_by')
                 .eq('id', notificationId)
                 .single();
             
-            const readBy = notification?.read_by || [];
+            var readBy = (notification && notification.read_by) || [];
             if (!readBy.includes(userId)) {
                 readBy.push(userId);
                 
@@ -862,9 +862,9 @@ async function updateNotificationsBadge() {
     try {
         if (!supabaseClient) return;
         
-        const userId = getCurrentUserId();
+        var userId = getCurrentUserId();
         
-        const { data, error } = await supabaseClient
+        var { data, error } = await supabaseClient
             .from('notifications')
             .select('read_by')
             .eq('sent', true);
@@ -872,9 +872,14 @@ async function updateNotificationsBadge() {
         if (error) throw error;
         
         // Count notifications where user hasn't read them
-        const unreadCount = data.filter(n => !n.read_by?.includes(userId)).length;
+        var unreadCount = 0;
+        for (var i = 0; i < data.length; i++) {
+            if (!data[i].read_by || !data[i].read_by.includes(userId)) {
+                unreadCount++;
+            }
+        }
         
-        const badge = document.getElementById('message-count');
+        var badge = document.getElementById('message-count');
         if (!badge) return;
         
         if (unreadCount > 0) {
@@ -890,9 +895,9 @@ async function updateNotificationsBadge() {
 }
 
 function openNotificationsModal() {
-    console.log('Opening notifications modal'); // Debug log
-    const modal = document.getElementById('messagesModal');
-    const modalTitle = document.getElementById('messagesModalTitle');
+    console.log('Opening notifications modal');
+    var modal = document.getElementById('messagesModal');
+    var modalTitle = document.getElementById('messagesModalTitle');
     
     if (modal) {
         // Update modal title
@@ -909,7 +914,7 @@ function openNotificationsModal() {
 }
 
 function closeMessagesModal() {
-    const modal = document.getElementById('messagesModal');
+    var modal = document.getElementById('messagesModal');
     if (modal) {
         modal.style.display = 'none';
         document.body.style.overflow = 'auto';
@@ -924,23 +929,23 @@ function refreshNotifications() {
 
 // Contact action functions
 function callNow() {
-    const phoneNumber = '0740851330';
-    if (confirm(`Call ${phoneNumber}?`)) {
-        window.location.href = `tel:${phoneNumber}`;
+    var phoneNumber = '0740851330';
+    if (confirm('Call ' + phoneNumber + '?')) {
+        window.location.href = 'tel:' + phoneNumber;
     }
 }
 
 function sendEmail() {
-    const email = 'support@starlinktokenwifi.com;
-    const subject = 'Inquiry about Starlink Token WiFi Services';
-    const body = 'Hello Starlink Token WiFi,\n\nI would like to inquire about your services.\n\nBest regards,';
-    const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    var email = 'support@starlinktokenwifi.com';
+    var subject = 'Inquiry about Starlink Token WiFi Services';
+    var body = 'Hello Starlink Token WiFi,\n\nI would like to inquire about your services.\n\nBest regards,';
+    var mailtoUrl = 'mailto:' + email + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
     window.location.href = mailtoUrl;
 }
 
 function openLocation() {
-    const address = 'Nakuru, Kenya';
-    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+    var address = 'Nakuru, Kenya';
+    var mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(address);
     window.open(mapsUrl, '_blank');
 }
 
