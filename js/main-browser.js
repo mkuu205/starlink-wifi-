@@ -136,8 +136,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Load bundles and gallery preview (only if Supabase is available)
-    loadBundles();
     if (supabaseInitialized) {
+        loadBundles();
         loadGalleryPreview();
         // Start checking for updates
         checkForUpdates();
@@ -168,7 +168,7 @@ async function checkForUpdates() {
                 .from('notifications')
                 .select('*')
                 .eq('sent', true)
-                .order('timestamp', { ascending: false })
+                .order('created_at', { ascending: false })
                 .limit(1);
             
             if (!error && data && data.length > 0) {
@@ -307,60 +307,66 @@ async function updateMessageCount() {
     }
 }
 
-// Load bundles
-function loadBundles() {
+// Load bundles from Supabase
+async function loadBundles() {
     const bundlesContainer = document.getElementById('bundles-container');
     
     if (!bundlesContainer) return;
     
+    // Show loading state
+    bundlesContainer.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
+            <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #3b82f6; margin-bottom: 1rem;"></i>
+            <h3>Loading Bundles...</h3>
+            <p>Please wait while we fetch the latest packages</p>
+        </div>
+    `;
+    
     try {
-        const defaultBundles = {
-            daily: {
-                id: 'daily',
-                name: 'Daily Bundle',
-                price: 50,
-                features: ['500MB Data', '24 Hours Validity', 'High Speed', 'No Expiry'],
-                visible: true
-            },
-            weekly: {
-                id: 'weekly',
-                name: 'Weekly Bundle',
-                price: 200,
-                features: ['3GB Data', '7 Days Validity', 'High Speed', 'No Expiry'],
-                visible: true
-            },
-            monthly: {
-                id: 'monthly',
-                name: 'Monthly Bundle',
-                price: 500,
-                features: ['15GB Data', '30 Days Validity', 'High Speed', 'No Expiry'],
-                visible: true
-            },
-            business: {
-                id: 'business',
-                name: 'Business Bundle',
-                price: 1500,
-                features: ['50GB Data', '30 Days Validity', 'Priority Support', 'Static IP', '24/7 Support'],
-                visible: true,
-                featured: true
-            }
-        };
+        if (!supabaseClient) {
+            throw new Error('Supabase client not initialized. Please refresh the page.');
+        }
+        
+        // Fetch bundles from Supabase
+        const { data, error } = await supabaseClient
+            .from('bundles')
+            .select('*')
+            .eq('visible', true)
+            .order('created_at', { ascending: true });
+        
+        if (error) {
+            throw error;
+        }
         
         bundlesContainer.innerHTML = '';
         
-        Object.values(defaultBundles).forEach(bundle => {
-            if (bundle.visible !== false) {
-                bundlesContainer.appendChild(createBundleCard(bundle, bundle.id));
-            }
+        if (!data || data.length === 0) {
+            // Show empty state instead of fallback
+            bundlesContainer.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 4rem;">
+                    <i class="fas fa-box-open" style="font-size: 3rem; color: #9ca3af; margin-bottom: 1rem;"></i>
+                    <h3>No Bundles Available</h3>
+                    <p>Please check back later for our internet packages</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Display bundles from Supabase
+        data.forEach(bundle => {
+            bundlesContainer.appendChild(createBundleCard(bundle, bundle.id));
         });
         
     } catch (error) {
-        console.error('Error loading bundles:', error);
+        console.error('Error loading bundles from Supabase:', error);
         bundlesContainer.innerHTML = `
             <div class="no-bundles" style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
-                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #f59e0b; margin-bottom: 1rem;"></i>
+                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
                 <h3>Unable to Load Bundles</h3>
-                <p>Please try again later</p>
+                <p>${error.message || 'Please try again later'}</p>
+                <button onclick="loadBundles()" class="btn btn-secondary" style="margin-top: 1rem;">
+                    <i class="fas fa-redo"></i> Retry
+                </button>
             </div>
         `;
     }
@@ -370,9 +376,17 @@ function createBundleCard(bundle, key) {
     const bundleCard = document.createElement('div');
     bundleCard.className = `bundle-card ${bundle.featured ? 'featured' : ''}`;
     
-    const featuresList = bundle.features 
-        ? bundle.features.map(feature => `<li><i class="fas fa-check"></i> ${feature}</li>`).join('')
-        : '';
+    // Handle features - could be array or comma-separated string
+    let featuresList = '';
+    if (bundle.features) {
+        if (Array.isArray(bundle.features)) {
+            featuresList = bundle.features.map(feature => `<li><i class="fas fa-check"></i> ${feature}</li>`).join('');
+        } else if (typeof bundle.features === 'string') {
+            // If features is a comma-separated string
+            const featuresArray = bundle.features.split(',').map(f => f.trim());
+            featuresList = featuresArray.map(feature => `<li><i class="fas fa-check"></i> ${feature}</li>`).join('');
+        }
+    }
     
     bundleCard.innerHTML = `
         <h3>${bundle.name || 'Bundle'}</h3>
@@ -409,7 +423,7 @@ async function loadGalleryPreview() {
             .from('gallery')
             .select('id, title, description, category, image_url, visible')
             .eq('visible', true)
-            .order('timestamp', { ascending: false })
+            .order('created_at', { ascending: false })
             .limit(3);
         
         if (error) {
@@ -487,7 +501,7 @@ async function loadFullGallery() {
             .from('gallery')
             .select('id, title, description, category, image_url, visible')
             .eq('visible', true)
-            .order('timestamp', { ascending: false });
+            .order('created_at', { ascending: false });
         
         if (error) {
             throw error;
@@ -863,7 +877,7 @@ function callNow() {
 }
 
 function sendEmail() {
-    const email = 'starlinktokenwifi@gmail.com';
+    const email = 'support@starlinktokenwifi.com;
     const subject = 'Inquiry about Starlink Token WiFi Services';
     const body = 'Hello Starlink Token WiFi,\n\nI would like to inquire about your services.\n\nBest regards,';
     const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
