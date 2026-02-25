@@ -666,13 +666,13 @@
                 </div>
             </div>
             <div class="messages-actions">
-                <button onclick="markAllNotificationsAsRead()" class="mark-read-btn">
+                <button onclick="window.markAllNotificationsAsRead ? markAllNotificationsAsRead() : console.log('Function not available')" class="mark-read-btn">
                     <i class="fas fa-check-double"></i> Mark All as Read
                 </button>
-                <button onclick="refreshNotifications()" class="refresh-btn">
+                <button onclick="window.refreshNotifications ? refreshNotifications() : console.log('Function not available')" class="refresh-btn">
                     <i class="fas fa-sync-alt"></i> Refresh
                 </button>
-                <button onclick="exportNotifications()" class="export-btn">
+                <button onclick="window.exportNotifications ? exportNotifications() : console.log('Function not available')" class="export-btn">
                     <i class="fas fa-download"></i> Export
                 </button>
             </div>
@@ -693,39 +693,38 @@
     <!-- Scripts -->
     <script src="js/main-browser.js"></script>
     
-    <!-- Notifications JavaScript -->
+    <!-- Notifications JavaScript - This now uses functions from main-browser.js -->
     <script>
-        // Global variables
-        let supabase;
-        let notifications = [];
-        
-        // Supabase configuration
-        const SUPABASE_URL = 'https://jgaeldguwezbgglwaivz.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpnYWVsZGd1d2V6YmdnbHdhaXZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1Nzg1NTAsImV4cCI6MjA4NjE1NDU1MH0.pAkRxRs1gvmrJJR_CNietYes6ju6qOMP8Etnpr3TtyQ';
+        // No need to redeclare supabase - it's already in main-browser.js as supabaseClient
         
         // Initialize when DOM loads
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize Supabase
-            if (window.supabase) {
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                console.log('Supabase client initialized for notifications');
-            }
-            
             // Setup messages button click handler
-            const messagesBtn = document.getElementById('messages-notification');
+            var messagesBtn = document.getElementById('messages-notification');
             if (messagesBtn) {
                 messagesBtn.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    openNotificationsModal();
+                    // Use the function from main-browser.js
+                    if (typeof window.openNotificationsModal === 'function') {
+                        window.openNotificationsModal();
+                    } else {
+                        console.error('openNotificationsModal function not found in main-browser.js');
+                    }
                 });
             }
             
-            // Load unread count on page load
-            loadUnreadCount();
+            // Load unread count on page load if function exists
+            if (typeof window.updateNotificationsBadge === 'function') {
+                window.updateNotificationsBadge();
+            }
             
             // Set up periodic update of notification count
-            setInterval(loadUnreadCount, 60000); // Update every minute
+            setInterval(function() {
+                if (typeof window.updateNotificationsBadge === 'function') {
+                    window.updateNotificationsBadge();
+                }
+            }, 60000); // Update every minute
         });
         
         // Contact action functions
@@ -770,191 +769,59 @@
             window.open('https://instagram.com', '_blank');
         }
         
-        // NOTIFICATIONS FUNCTIONS
+        // Fallback functions in case main-browser.js functions aren't available
         function openNotificationsModal() {
-            var modal = document.getElementById('messagesModal');
-            if (modal) {
-                modal.style.display = 'block';
-                document.body.style.overflow = 'hidden';
-                loadNotifications();
+            if (typeof window.openNotificationsModal === 'function') {
+                window.openNotificationsModal();
+            } else {
+                console.error('openNotificationsModal not available in main-browser.js');
+                alert('Notifications feature is currently unavailable. Please refresh the page.');
             }
         }
         
         function closeMessagesModal() {
-            var modal = document.getElementById('messagesModal');
-            if (modal) {
-                modal.style.display = 'none';
-                document.body.style.overflow = 'auto';
-                loadUnreadCount();
-            }
-        }
-        
-        async function loadNotifications() {
-            var container = document.getElementById('messagesContainer');
-            if (!container) return;
-            
-            container.innerHTML = '<div style="text-align: center; padding: 2rem;"><i class="fas fa-spinner fa-spin"></i> Loading notifications...</div>';
-            
-            try {
-                if (!supabase) {
-                    throw new Error('Supabase client not initialized');
-                }
-                
-                // Fetch notifications from Supabase
-                var { data, error } = await supabase
-                    .from('notifications')
-                    .select('*')
-                    .eq('sent', true)
-                    .order('created_at', { ascending: false });
-                
-                if (error) {
-                    console.error('Supabase error:', error);
-                    throw error;
-                }
-                
-                notifications = data || [];
-                displayNotifications(notifications);
-                
-            } catch (error) {
-                console.error('Error loading notifications:', error);
-                container.innerHTML = '<div class="no-messages">' +
-                    '<i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>' +
-                    '<h3>Error Loading Notifications</h3>' +
-                    '<p>' + (error.message || 'Please try again later') + '</p>' +
-                    '<button onclick="loadNotifications()" class="btn btn-secondary" style="margin-top: 1rem;">' +
-                    '<i class="fas fa-redo"></i> Retry' +
-                    '</button>' +
-                    '</div>';
-            }
-        }
-        
-        function displayNotifications(notificationsList) {
-            var container = document.getElementById('messagesContainer');
-            
-            if (!notificationsList || notificationsList.length === 0) {
-                container.innerHTML = '<div class="no-messages">' +
-                    '<i class="fas fa-bell-slash" style="font-size: 3rem; color: #ccc; margin-bottom: 1rem;"></i>' +
-                    '<p>No notifications yet</p>' +
-                    '</div>';
-                return;
-            }
-            
-            var html = '';
-            for (var i = 0; i < notificationsList.length; i++) {
-                var notification = notificationsList[i];
-                var time = new Date(notification.created_at).toLocaleString();
-                
-                html += '<div class="message-item" data-id="' + notification.id + '">' +
-                    '<div class="message-header">' +
-                    '<div class="message-sender">' +
-                    '<i class="fas fa-bullhorn" style="color: #3b82f6; margin-right: 0.5rem;"></i>' +
-                    'Admin Update' +
-                    '</div>' +
-                    '<div class="message-time">' + time + '</div>' +
-                    '</div>';
-                
-                if (notification.title) {
-                    html += '<div style="font-weight: bold; margin: 0.5rem 0; color: #333;">' + notification.title + '</div>';
-                }
-                
-                html += '<div class="message-content">' + (notification.message || notification.content || '') + '</div>' +
-                    '</div>';
-            }
-            
-            container.innerHTML = html;
-            
-            // Store last viewed time
-            localStorage.setItem('lastNotificationsView', new Date().toISOString());
-        }
-        
-        async function loadUnreadCount() {
-            try {
-                if (!supabase) return;
-                
-                // Get last viewed time
-                var lastView = localStorage.getItem('lastNotificationsView');
-                var query = supabase
-                    .from('notifications')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('sent', true);
-                
-                if (lastView) {
-                    query = query.gt('created_at', lastView);
-                }
-                
-                var { count, error } = await query;
-                
-                if (error) throw error;
-                
-                updateBadge(count || 0);
-                
-            } catch (error) {
-                console.error('Error loading unread count:', error);
-            }
-        }
-        
-        function updateBadge(count) {
-            var badge = document.getElementById('message-count');
-            if (!badge) return;
-            
-            if (count > 0) {
-                badge.textContent = count > 9 ? '9+' : count;
-                badge.style.display = 'flex';
+            if (typeof window.closeMessagesModal === 'function') {
+                window.closeMessagesModal();
             } else {
-                badge.style.display = 'none';
+                var modal = document.getElementById('messagesModal');
+                if (modal) {
+                    modal.style.display = 'none';
+                    document.body.style.overflow = 'auto';
+                }
             }
         }
         
         function refreshNotifications() {
-            loadNotifications();
-            showNotification('Notifications refreshed', 'success');
+            if (typeof window.refreshNotifications === 'function') {
+                window.refreshNotifications();
+            } else {
+                console.log('Refresh function not available');
+            }
         }
         
         function markAllNotificationsAsRead() {
-            // Just update the last viewed time to now
-            localStorage.setItem('lastNotificationsView', new Date().toISOString());
-            
-            // Remove unread class from all items
-            var items = document.querySelectorAll('.message-item');
-            for (var i = 0; i < items.length; i++) {
-                items[i].classList.remove('unread');
+            if (typeof window.markAllNotificationsAsRead === 'function') {
+                window.markAllNotificationsAsRead();
+            } else {
+                // Simple fallback
+                localStorage.setItem('lastNotificationsView', new Date().toISOString());
+                var items = document.querySelectorAll('.message-item');
+                for (var i = 0; i < items.length; i++) {
+                    items[i].classList.remove('unread');
+                }
+                if (typeof window.updateNotificationsBadge === 'function') {
+                    window.updateNotificationsBadge();
+                }
+                showNotification('All notifications marked as read', 'success');
             }
-            
-            loadUnreadCount();
-            showNotification('All notifications marked as read', 'success');
         }
         
         function exportNotifications() {
-            if (notifications.length === 0) {
-                showNotification('No notifications to export', 'warning');
-                return;
+            if (typeof window.exportNotifications === 'function') {
+                window.exportNotifications();
+            } else {
+                showNotification('Export function not available', 'warning');
             }
-            
-            // Convert notifications to CSV
-            var headers = ['Title', 'Message', 'Date'];
-            var csvRows = [
-                headers.join(','),
-                ...notifications.map(function(notification) {
-                    return [
-                        '"' + (notification.title || '') + '"',
-                        '"' + (notification.message || notification.content || '') + '"',
-                        '"' + new Date(notification.created_at).toLocaleString() + '"'
-                    ].join(',');
-                })
-            ];
-            
-            var csvContent = csvRows.join('\n');
-            var blob = new Blob([csvContent], { type: 'text/csv' });
-            var url = window.URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = 'notifications_' + new Date().toISOString().split('T')[0] + '.csv';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-            
-            showNotification('Notifications exported successfully', 'success');
         }
         
         function showNotification(message, type) {
@@ -989,75 +856,6 @@
             }
         }
         
-        // Setup contact form submission
-        function setupContactForm() {
-            var form = document.getElementById('contact-form');
-            if (form) {
-                form.addEventListener('submit', async function(e) {
-                    e.preventDefault();
-                    
-                    var name = document.getElementById('name').value;
-                    var email = document.getElementById('email').value;
-                    var phone = document.getElementById('phone').value;
-                    var service = document.getElementById('service').value;
-                    var message = document.getElementById('message').value;
-                    var formMessage = document.getElementById('form-message');
-                    
-                    var submitBtn = form.querySelector('button[type="submit"]');
-                    var originalText = submitBtn.innerHTML;
-                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-                    submitBtn.disabled = true;
-                    
-                    try {
-                        // Determine backend URL based on environment
-                        var backendUrl;
-                        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                            backendUrl = 'http://localhost:3000';
-                        } else {
-                            backendUrl = 'https://starlink-wifi-backend-v862.onrender.com';
-                        }
-                        
-                        var response = await fetch(backendUrl + '/api/contact', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                name: name,
-                                email: email,
-                                phone: phone,
-                                service: service,
-                                message: message
-                            })
-                        });
-                        
-                        var result = await response.json();
-                        
-                        if (response.ok && result.success) {
-                            formMessage.innerHTML = '<p class="success">Message sent successfully! We\'ll contact you soon.</p>';
-                            formMessage.style.color = 'green';
-                            form.reset();
-                            
-                        } else {
-                            throw new Error(result.message || 'Failed to send message');
-                        }
-                        
-                    } catch (error) {
-                        console.error('Error sending message:', error);
-                        formMessage.innerHTML = '<p class="error">Error sending message. Please try again or call us directly.</p>';
-                        formMessage.style.color = 'red';
-                    } finally {
-                        submitBtn.innerHTML = originalText;
-                        submitBtn.disabled = false;
-                        
-                        setTimeout(function() {
-                            formMessage.innerHTML = '';
-                        }, 5000);
-                    }
-                });
-            }
-        }
-        
         // Make functions available globally
         window.callNow = callNow;
         window.openWhatsApp = openWhatsApp;
@@ -1066,7 +864,6 @@
         window.openFacebook = openFacebook;
         window.openTwitter = openTwitter;
         window.openInstagram = openInstagram;
-        window.openNotificationsModal = openNotificationsModal;
         window.closeMessagesModal = closeMessagesModal;
         window.markAllNotificationsAsRead = markAllNotificationsAsRead;
         window.refreshNotifications = refreshNotifications;
