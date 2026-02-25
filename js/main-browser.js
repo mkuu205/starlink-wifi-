@@ -232,7 +232,7 @@ function setupContactForm() {
                 // Determine backend URL based on environment
                 const backendUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
                     ? 'http://localhost:3000'
-                    : 'https://starlink-wifi-backend.onrender.com';
+                    : 'https://starlink-wifi-backend-v862.onrender.com';
                 
                 const response = await fetch(`${backendUrl}/api/contact`, {
                     method: 'POST',
@@ -929,3 +929,4 @@ window.openTwitter = openTwitter;
 window.openInstagram = openInstagram;
 
 console.log('Browser-compatible main script initialized');
+
