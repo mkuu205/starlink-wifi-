@@ -666,13 +666,13 @@
                 </div>
             </div>
             <div class="messages-actions">
-                <button onclick="window.markAllNotificationsAsRead ? markAllNotificationsAsRead() : console.log('Function not available')" class="mark-read-btn">
+                <button onclick="markAllNotificationsAsRead()" class="mark-read-btn">
                     <i class="fas fa-check-double"></i> Mark All as Read
                 </button>
-                <button onclick="window.refreshNotifications ? refreshNotifications() : console.log('Function not available')" class="refresh-btn">
+                <button onclick="refreshNotifications()" class="refresh-btn">
                     <i class="fas fa-sync-alt"></i> Refresh
                 </button>
-                <button onclick="window.exportNotifications ? exportNotifications() : console.log('Function not available')" class="export-btn">
+                <button onclick="exportNotifications()" class="export-btn">
                     <i class="fas fa-download"></i> Export
                 </button>
             </div>
@@ -690,186 +690,7 @@
         </div>
     </div>
 
-    <!-- Scripts -->
+    <!-- Scripts - ONLY ONE SCRIPT TAG -->
     <script src="js/main-browser.js"></script>
-    
-    <!-- Notifications JavaScript - This now uses functions from main-browser.js -->
-    <script>
-        // No need to redeclare supabase - it's already in main-browser.js as supabaseClient
-        
-        // Initialize when DOM loads
-        document.addEventListener('DOMContentLoaded', function() {
-            // Setup messages button click handler
-            var messagesBtn = document.getElementById('messages-notification');
-            if (messagesBtn) {
-                messagesBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    // Use the function from main-browser.js
-                    if (typeof window.openNotificationsModal === 'function') {
-                        window.openNotificationsModal();
-                    } else {
-                        console.error('openNotificationsModal function not found in main-browser.js');
-                    }
-                });
-            }
-            
-            // Load unread count on page load if function exists
-            if (typeof window.updateNotificationsBadge === 'function') {
-                window.updateNotificationsBadge();
-            }
-            
-            // Set up periodic update of notification count
-            setInterval(function() {
-                if (typeof window.updateNotificationsBadge === 'function') {
-                    window.updateNotificationsBadge();
-                }
-            }, 60000); // Update every minute
-        });
-        
-        // Contact action functions
-        function callNow() {
-            var phoneNumber = '0740851330';
-            if (confirm('Call ' + phoneNumber + '?')) {
-                window.location.href = 'tel:' + phoneNumber;
-            }
-        }
-        
-        function openWhatsApp() {
-            var phoneNumber = '254740851330';
-            var message = 'Hello Starlink Token WiFi, I am interested in your services.';
-            var whatsappUrl = 'https://wa.me/' + phoneNumber + '?text=' + encodeURIComponent(message);
-            window.open(whatsappUrl, '_blank');
-        }
-        
-        function sendEmail() {
-            var email = 'support@starlinktokenwifi.com';
-            var subject = 'Inquiry about Starlink Token WiFi Services';
-            var body = 'Hello Starlink Token WiFi,\n\nI would like to inquire about your services.\n\nBest regards,';
-            var mailtoUrl = 'mailto:' + email + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
-            window.location.href = mailtoUrl;
-        }
-        
-        function openLocation() {
-            var address = 'Nakuru, Kenya';
-            var mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(address);
-            window.open(mapsUrl, '_blank');
-        }
-        
-        // Social media functions
-        function openFacebook() {
-            window.open('https://facebook.com', '_blank');
-        }
-        
-        function openTwitter() {
-            window.open('https://twitter.com', '_blank');
-        }
-        
-        function openInstagram() {
-            window.open('https://instagram.com', '_blank');
-        }
-        
-        // Fallback functions in case main-browser.js functions aren't available
-        function openNotificationsModal() {
-            if (typeof window.openNotificationsModal === 'function') {
-                window.openNotificationsModal();
-            } else {
-                console.error('openNotificationsModal not available in main-browser.js');
-                alert('Notifications feature is currently unavailable. Please refresh the page.');
-            }
-        }
-        
-        function closeMessagesModal() {
-            if (typeof window.closeMessagesModal === 'function') {
-                window.closeMessagesModal();
-            } else {
-                var modal = document.getElementById('messagesModal');
-                if (modal) {
-                    modal.style.display = 'none';
-                    document.body.style.overflow = 'auto';
-                }
-            }
-        }
-        
-        function refreshNotifications() {
-            if (typeof window.refreshNotifications === 'function') {
-                window.refreshNotifications();
-            } else {
-                console.log('Refresh function not available');
-            }
-        }
-        
-        function markAllNotificationsAsRead() {
-            if (typeof window.markAllNotificationsAsRead === 'function') {
-                window.markAllNotificationsAsRead();
-            } else {
-                // Simple fallback
-                localStorage.setItem('lastNotificationsView', new Date().toISOString());
-                var items = document.querySelectorAll('.message-item');
-                for (var i = 0; i < items.length; i++) {
-                    items[i].classList.remove('unread');
-                }
-                if (typeof window.updateNotificationsBadge === 'function') {
-                    window.updateNotificationsBadge();
-                }
-                showNotification('All notifications marked as read', 'success');
-            }
-        }
-        
-        function exportNotifications() {
-            if (typeof window.exportNotifications === 'function') {
-                window.exportNotifications();
-            } else {
-                showNotification('Export function not available', 'warning');
-            }
-        }
-        
-        function showNotification(message, type) {
-            if (type === undefined) type = 'info';
-            
-            var toast = document.getElementById('notification-toast');
-            var messageEl = document.getElementById('notification-message');
-            
-            if (toast && messageEl) {
-                // Set color based on type
-                var colors = {
-                    'success': '#10b981',
-                    'error': '#ef4444',
-                    'warning': '#f59e0b',
-                    'info': '#3b82f6'
-                };
-                
-                toast.style.backgroundColor = colors[type] || colors.info;
-                messageEl.textContent = message;
-                toast.classList.add('show');
-                
-                setTimeout(function() {
-                    toast.classList.remove('show');
-                }, 3000);
-            }
-        }
-        
-        function closeNotification() {
-            var toast = document.getElementById('notification-toast');
-            if (toast) {
-                toast.classList.remove('show');
-            }
-        }
-        
-        // Make functions available globally
-        window.callNow = callNow;
-        window.openWhatsApp = openWhatsApp;
-        window.sendEmail = sendEmail;
-        window.openLocation = openLocation;
-        window.openFacebook = openFacebook;
-        window.openTwitter = openTwitter;
-        window.openInstagram = openInstagram;
-        window.closeMessagesModal = closeMessagesModal;
-        window.markAllNotificationsAsRead = markAllNotificationsAsRead;
-        window.refreshNotifications = refreshNotifications;
-        window.exportNotifications = exportNotifications;
-        window.closeNotification = closeNotification;
-        window.showNotification = showNotification;
-    </script>
 </body>
 </html>
