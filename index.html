@@ -653,7 +653,7 @@
     <div id="messagesModal" class="messages-modal">
         <div class="messages-modal-content">
             <div class="messages-modal-header">
-                <h3><i class="fas fa-envelope"></i> Customer Messages</h3>
+                <h3 id="messagesModalTitle"><i class="fas fa-bell"></i> Notifications & Updates</h3>
                 <button class="modal-close" onclick="closeMessagesModal()">
                     <i class="fas fa-times"></i>
                 </button>
@@ -662,17 +662,17 @@
                 <!-- Messages will be loaded here -->
                 <div class="no-messages">
                     <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #ccc; margin-bottom: 1rem;"></i>
-                    <p>Loading messages...</p>
+                    <p>Loading notifications...</p>
                 </div>
             </div>
             <div class="messages-actions">
-                <button onclick="markAllAsRead()" class="mark-read-btn">
+                <button onclick="markAllNotificationsAsRead()" class="mark-read-btn">
                     <i class="fas fa-check-double"></i> Mark All as Read
                 </button>
-                <button onclick="refreshMessages()" class="refresh-btn">
+                <button onclick="refreshNotifications()" class="refresh-btn">
                     <i class="fas fa-sync-alt"></i> Refresh
                 </button>
-                <button onclick="exportMessages()" class="export-btn">
+                <button onclick="exportNotifications()" class="export-btn">
                     <i class="fas fa-download"></i> Export
                 </button>
             </div>
@@ -693,13 +693,13 @@
     <!-- Scripts -->
     <script src="js/main-browser.js"></script>
     
-    <!-- Messages JavaScript -->
+    <!-- Notifications JavaScript -->
     <script>
         // Global variables
         let supabase;
-        let messages = [];
+        let notifications = [];
         
-        // Supabase configuration (from your main-browser.js)
+        // Supabase configuration
         const SUPABASE_URL = 'https://jgaeldguwezbgglwaivz.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpnYWVsZGd1d2V6YmdnbHdhaXZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1Nzg1NTAsImV4cCI6MjA4NjE1NDU1MH0.pAkRxRs1gvmrJJR_CNietYes6ju6qOMP8Etnpr3TtyQ';
         
@@ -708,7 +708,7 @@
             // Initialize Supabase
             if (window.supabase) {
                 supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                console.log('Supabase client initialized for messages');
+                console.log('Supabase client initialized for notifications');
             }
             
             // Setup messages button click handler
@@ -717,50 +717,50 @@
                 messagesBtn.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    openMessagesModal();
+                    openNotificationsModal();
                 });
             }
             
             // Load unread count on page load
             loadUnreadCount();
             
-            // Set up periodic update of message count
+            // Set up periodic update of notification count
             setInterval(loadUnreadCount, 60000); // Update every minute
-            
-            // Add event listener for contact form submission
-            setupContactForm();
         });
         
         // Contact action functions
         function callNow() {
-            const phoneNumber = '0740851330';
-            if (confirm(`Call ${phoneNumber}?`)) {
-                window.location.href = `tel:${phoneNumber}`;
+            var phoneNumber = '0740851330';
+            if (confirm('Call ' + phoneNumber + '?')) {
+                window.location.href = 'tel:' + phoneNumber;
             }
         }
         
         function openWhatsApp() {
-            const phoneNumber = '254740851330';
-            const message = 'Hello Starlink Token WiFi, I am interested in your services.';
-            const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+            var phoneNumber = '254740851330';
+            var message = 'Hello Starlink Token WiFi, I am interested in your services.';
+            var whatsappUrl = 'https://wa.me/' + phoneNumber + '?text=' + encodeURIComponent(message);
             window.open(whatsappUrl, '_blank');
         }
         
         function sendEmail() {
-            const email = 'support@starlinktokenwifi.com;
-            const subject = 'Inquiry about Starlink Token WiFi Services';
-            const body = 'Hello Starlink Token WiFi,\n\nI would like to inquire about your services.\n\nBest regards,';
-            const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            var email = 'support@starlinktokenwifi.com';
+            var subject = 'Inquiry about Starlink Token WiFi Services';
+            var body = 'Hello Starlink Token WiFi,\n\nI would like to inquire about your services.\n\nBest regards,';
+            var mailtoUrl = 'mailto:' + email + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
             window.location.href = mailtoUrl;
         }
         
         function openLocation() {
-            const address = 'Nakuru, Kenya';
-            const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+            var address = 'Nakuru, Kenya';
+            var mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(address);
             window.open(mapsUrl, '_blank');
         }
         
         // Social media functions
+        function openFacebook() {
+            window.open('https://facebook.com', '_blank');
+        }
         
         function openTwitter() {
             window.open('https://twitter.com', '_blank');
@@ -770,33 +770,41 @@
             window.open('https://instagram.com', '_blank');
         }
         
-        // MESSAGES FUNCTIONS
-        function openMessagesModal() {
-            document.getElementById('messagesModal').style.display = 'block';
-            document.body.style.overflow = 'hidden';
-            loadMessages();
+        // NOTIFICATIONS FUNCTIONS
+        function openNotificationsModal() {
+            var modal = document.getElementById('messagesModal');
+            if (modal) {
+                modal.style.display = 'block';
+                document.body.style.overflow = 'hidden';
+                loadNotifications();
+            }
         }
         
         function closeMessagesModal() {
-            document.getElementById('messagesModal').style.display = 'none';
-            document.body.style.overflow = 'auto';
-            // Refresh unread count when closing modal
-            loadUnreadCount();
+            var modal = document.getElementById('messagesModal');
+            if (modal) {
+                modal.style.display = 'none';
+                document.body.style.overflow = 'auto';
+                loadUnreadCount();
+            }
         }
         
-        async function loadMessages() {
-            const container = document.getElementById('messagesContainer');
-            container.innerHTML = '<div style="text-align: center; padding: 2rem;"><i class="fas fa-spinner fa-spin"></i> Loading messages...</div>';
+        async function loadNotifications() {
+            var container = document.getElementById('messagesContainer');
+            if (!container) return;
+            
+            container.innerHTML = '<div style="text-align: center; padding: 2rem;"><i class="fas fa-spinner fa-spin"></i> Loading notifications...</div>';
             
             try {
                 if (!supabase) {
                     throw new Error('Supabase client not initialized');
                 }
                 
-                // Fetch messages from Supabase
-                const { data, error } = await supabase
-                    .from('messages')
+                // Fetch notifications from Supabase
+                var { data, error } = await supabase
+                    .from('notifications')
                     .select('*')
+                    .eq('sent', true)
                     .order('created_at', { ascending: false });
                 
                 if (error) {
@@ -804,125 +812,77 @@
                     throw error;
                 }
                 
-                messages = data || [];
-                displayMessages(messages);
+                notifications = data || [];
+                displayNotifications(notifications);
                 
             } catch (error) {
-                console.error('Error loading messages:', error);
-                container.innerHTML = `
-                    <div class="no-messages">
-                        <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
-                        <h3>Error Loading Messages</h3>
-                        <p>${error.message || 'Please try again later'}</p>
-                        <button onclick="loadMessages()" class="btn btn-secondary" style="margin-top: 1rem;">
-                            <i class="fas fa-redo"></i> Retry
-                        </button>
-                    </div>
-                `;
+                console.error('Error loading notifications:', error);
+                container.innerHTML = '<div class="no-messages">' +
+                    '<i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>' +
+                    '<h3>Error Loading Notifications</h3>' +
+                    '<p>' + (error.message || 'Please try again later') + '</p>' +
+                    '<button onclick="loadNotifications()" class="btn btn-secondary" style="margin-top: 1rem;">' +
+                    '<i class="fas fa-redo"></i> Retry' +
+                    '</button>' +
+                    '</div>';
             }
         }
         
-        function displayMessages(messagesList) {
-            const container = document.getElementById('messagesContainer');
+        function displayNotifications(notificationsList) {
+            var container = document.getElementById('messagesContainer');
             
-            if (!messagesList || messagesList.length === 0) {
-                container.innerHTML = `
-                    <div class="no-messages">
-                        <i class="fas fa-envelope-open" style="font-size: 3rem; color: #ccc; margin-bottom: 1rem;"></i>
-                        <p>No messages yet</p>
-                    </div>
-                `;
+            if (!notificationsList || notificationsList.length === 0) {
+                container.innerHTML = '<div class="no-messages">' +
+                    '<i class="fas fa-bell-slash" style="font-size: 3rem; color: #ccc; margin-bottom: 1rem;"></i>' +
+                    '<p>No notifications yet</p>' +
+                    '</div>';
                 return;
             }
             
-            let html = '';
-            messagesList.forEach(message => {
-                const time = new Date(message.created_at).toLocaleString();
-                const isUnread = !message.read;
-                const phoneDisplay = message.phone ? message.phone : 'No phone provided';
+            var html = '';
+            for (var i = 0; i < notificationsList.length; i++) {
+                var notification = notificationsList[i];
+                var time = new Date(notification.created_at).toLocaleString();
                 
-                html += `
-                    <div class="message-item ${isUnread ? 'unread' : ''}" data-id="${message.id}" onclick="markMessageAsRead('${message.id}')">
-                        <div class="message-header">
-                            <div class="message-sender">${message.name || 'Unknown'}</div>
-                            <div class="message-time">${time}</div>
-                        </div>
-                        <div>
-                            ${message.service ? `<span class="message-service">${message.service}</span>` : ''}
-                            <span style="color: #666; font-size: 0.9rem;">${phoneDisplay}</span>
-                        </div>
-                        <div style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;">
-                            <i class="fas fa-envelope"></i> ${message.email}
-                        </div>
-                        <div class="message-content">${message.message || 'No message content'}</div>
-                    </div>
-                `;
-            });
-            
-            container.innerHTML = html;
-        }
-        
-        async function markMessageAsRead(messageId) {
-            try {
-                if (!supabase) return;
+                html += '<div class="message-item" data-id="' + notification.id + '">' +
+                    '<div class="message-header">' +
+                    '<div class="message-sender">' +
+                    '<i class="fas fa-bullhorn" style="color: #3b82f6; margin-right: 0.5rem;"></i>' +
+                    'Admin Update' +
+                    '</div>' +
+                    '<div class="message-time">' + time + '</div>' +
+                    '</div>';
                 
-                const { error } = await supabase
-                    .from('messages')
-                    .update({ read: true, read_at: new Date().toISOString() })
-                    .eq('id', messageId);
-                
-                if (error) throw error;
-                
-                // Update UI
-                const item = document.querySelector(`.message-item[data-id="${messageId}"]`);
-                if (item) {
-                    item.classList.remove('unread');
+                if (notification.title) {
+                    html += '<div style="font-weight: bold; margin: 0.5rem 0; color: #333;">' + notification.title + '</div>';
                 }
                 
-                // Update unread count
-                loadUnreadCount();
-                
-            } catch (error) {
-                console.error('Error marking message as read:', error);
-                showNotification('Error updating message status', 'error');
+                html += '<div class="message-content">' + (notification.message || notification.content || '') + '</div>' +
+                    '</div>';
             }
-        }
-        
-        async function markAllAsRead() {
-            try {
-                if (!supabase) return;
-                
-                const { error } = await supabase
-                    .from('messages')
-                    .update({ read: true, read_at: new Date().toISOString() })
-                    .eq('read', false);
-                
-                if (error) throw error;
-                
-                // Update UI
-                document.querySelectorAll('.message-item').forEach(item => {
-                    item.classList.remove('unread');
-                });
-                
-                // Update unread count
-                loadUnreadCount();
-                
-                showNotification('All messages marked as read', 'success');
-                
-            } catch (error) {
-                console.error('Error marking all as read:', error);
-                showNotification('Error updating messages', 'error');
-            }
+            
+            container.innerHTML = html;
+            
+            // Store last viewed time
+            localStorage.setItem('lastNotificationsView', new Date().toISOString());
         }
         
         async function loadUnreadCount() {
             try {
                 if (!supabase) return;
                 
-                const { count, error } = await supabase
-                    .from('messages')
+                // Get last viewed time
+                var lastView = localStorage.getItem('lastNotificationsView');
+                var query = supabase
+                    .from('notifications')
                     .select('*', { count: 'exact', head: true })
-                    .eq('read', false);
+                    .eq('sent', true);
+                
+                if (lastView) {
+                    query = query.gt('created_at', lastView);
+                }
+                
+                var { count, error } = await query;
                 
                 if (error) throw error;
                 
@@ -934,7 +894,7 @@
         }
         
         function updateBadge(count) {
-            const badge = document.getElementById('message-count');
+            var badge = document.getElementById('message-count');
             if (!badge) return;
             
             if (count > 0) {
@@ -945,53 +905,67 @@
             }
         }
         
-        function refreshMessages() {
-            loadMessages();
-            showNotification('Messages refreshed', 'success');
+        function refreshNotifications() {
+            loadNotifications();
+            showNotification('Notifications refreshed', 'success');
         }
         
-        function exportMessages() {
-            if (messages.length === 0) {
-                showNotification('No messages to export', 'warning');
+        function markAllNotificationsAsRead() {
+            // Just update the last viewed time to now
+            localStorage.setItem('lastNotificationsView', new Date().toISOString());
+            
+            // Remove unread class from all items
+            var items = document.querySelectorAll('.message-item');
+            for (var i = 0; i < items.length; i++) {
+                items[i].classList.remove('unread');
+            }
+            
+            loadUnreadCount();
+            showNotification('All notifications marked as read', 'success');
+        }
+        
+        function exportNotifications() {
+            if (notifications.length === 0) {
+                showNotification('No notifications to export', 'warning');
                 return;
             }
             
-            // Convert messages to CSV
-            const headers = ['Name', 'Email', 'Phone', 'Service', 'Message', 'Date', 'Read'];
-            const csvRows = [
+            // Convert notifications to CSV
+            var headers = ['Title', 'Message', 'Date'];
+            var csvRows = [
                 headers.join(','),
-                ...messages.map(msg => [
-                    `"${msg.name || ''}"`,
-                    `"${msg.email || ''}"`,
-                    `"${msg.phone || ''}"`,
-                    `"${msg.service || ''}"`,
-                    `"${msg.message || ''}"`,
-                    `"${new Date(msg.created_at).toLocaleString()}"`,
-                    `"${msg.read ? 'Yes' : 'No'}"`
-                ].join(','))
+                ...notifications.map(function(notification) {
+                    return [
+                        '"' + (notification.title || '') + '"',
+                        '"' + (notification.message || notification.content || '') + '"',
+                        '"' + new Date(notification.created_at).toLocaleString() + '"'
+                    ].join(',');
+                })
             ];
             
-            const csvContent = csvRows.join('\n');
-            const blob = new Blob([csvContent], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
+            var csvContent = csvRows.join('\n');
+            var blob = new Blob([csvContent], { type: 'text/csv' });
+            var url = window.URL.createObjectURL(blob);
+            var a = document.createElement('a');
             a.href = url;
-            a.download = `messages_${new Date().toISOString().split('T')[0]}.csv`;
+            a.download = 'notifications_' + new Date().toISOString().split('T')[0] + '.csv';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
             
-            showNotification('Messages exported successfully', 'success');
+            showNotification('Notifications exported successfully', 'success');
         }
         
-        function showNotification(message, type = 'info') {
-            const toast = document.getElementById('notification-toast');
-            const messageEl = document.getElementById('notification-message');
+        function showNotification(message, type) {
+            if (type === undefined) type = 'info';
+            
+            var toast = document.getElementById('notification-toast');
+            var messageEl = document.getElementById('notification-message');
             
             if (toast && messageEl) {
                 // Set color based on type
-                const colors = {
+                var colors = {
                     'success': '#10b981',
                     'error': '#ef4444',
                     'warning': '#f59e0b',
@@ -1002,88 +976,87 @@
                 messageEl.textContent = message;
                 toast.classList.add('show');
                 
-                setTimeout(() => {
+                setTimeout(function() {
                     toast.classList.remove('show');
                 }, 3000);
             }
         }
         
         function closeNotification() {
-            const toast = document.getElementById('notification-toast');
+            var toast = document.getElementById('notification-toast');
             if (toast) {
                 toast.classList.remove('show');
             }
         }
         
         // Setup contact form submission
-function setupContactForm() {
-    const form = document.getElementById('contact-form');
-    if (form) {
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const name = document.getElementById('name').value;
-            const email = document.getElementById('email').value;
-            const phone = document.getElementById('phone').value;
-            const service = document.getElementById('service').value;
-            const message = document.getElementById('message').value;
-            const formMessage = document.getElementById('form-message');
-            
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-            submitBtn.disabled = true;
-            
-            try {
-                // Determine backend URL based on environment
-                const backendUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-                    ? 'http://localhost:3000'
-                    : 'https://starlink-wifi-backend.onrender.com';
-                
-                const response = await fetch(`${backendUrl}/api/contact`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        name: name,
-                        email: email,
-                        phone: phone,
-                        service: service,
-                        message: message
-                    })
-                });
-                
-                const result = await response.json();
-                
-                if (response.ok && result.success) {
-                    formMessage.innerHTML = '<p class="success">Message sent successfully! We\'ll contact you soon.</p>';
-                    formMessage.style.color = 'green';
-                    form.reset();
+        function setupContactForm() {
+            var form = document.getElementById('contact-form');
+            if (form) {
+                form.addEventListener('submit', async function(e) {
+                    e.preventDefault();
                     
-                    if (typeof updateMessageCount === 'function') {
-                        updateMessageCount();
+                    var name = document.getElementById('name').value;
+                    var email = document.getElementById('email').value;
+                    var phone = document.getElementById('phone').value;
+                    var service = document.getElementById('service').value;
+                    var message = document.getElementById('message').value;
+                    var formMessage = document.getElementById('form-message');
+                    
+                    var submitBtn = form.querySelector('button[type="submit"]');
+                    var originalText = submitBtn.innerHTML;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+                    submitBtn.disabled = true;
+                    
+                    try {
+                        // Determine backend URL based on environment
+                        var backendUrl;
+                        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                            backendUrl = 'http://localhost:3000';
+                        } else {
+                            backendUrl = 'https://starlink-wifi-backend-v862.onrender.com';
+                        }
+                        
+                        var response = await fetch(backendUrl + '/api/contact', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                name: name,
+                                email: email,
+                                phone: phone,
+                                service: service,
+                                message: message
+                            })
+                        });
+                        
+                        var result = await response.json();
+                        
+                        if (response.ok && result.success) {
+                            formMessage.innerHTML = '<p class="success">Message sent successfully! We\'ll contact you soon.</p>';
+                            formMessage.style.color = 'green';
+                            form.reset();
+                            
+                        } else {
+                            throw new Error(result.message || 'Failed to send message');
+                        }
+                        
+                    } catch (error) {
+                        console.error('Error sending message:', error);
+                        formMessage.innerHTML = '<p class="error">Error sending message. Please try again or call us directly.</p>';
+                        formMessage.style.color = 'red';
+                    } finally {
+                        submitBtn.innerHTML = originalText;
+                        submitBtn.disabled = false;
+                        
+                        setTimeout(function() {
+                            formMessage.innerHTML = '';
+                        }, 5000);
                     }
-                    
-                } else {
-                    throw new Error(result.message || 'Failed to send message');
-                }
-                
-            } catch (error) {
-                console.error('Error sending message:', error);
-                formMessage.innerHTML = '<p class="error">Error sending message. Please try again or call us directly.</p>';
-                formMessage.style.color = 'red';
-            } finally {
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
-                
-                setTimeout(() => {
-                    formMessage.innerHTML = '';
-                }, 5000);
+                });
             }
-        });
-    }
-}
+        }
         
         // Make functions available globally
         window.callNow = callNow;
@@ -1093,12 +1066,13 @@ function setupContactForm() {
         window.openFacebook = openFacebook;
         window.openTwitter = openTwitter;
         window.openInstagram = openInstagram;
-        window.openMessagesModal = openMessagesModal;
+        window.openNotificationsModal = openNotificationsModal;
         window.closeMessagesModal = closeMessagesModal;
-        window.markAllAsRead = markAllAsRead;
-        window.refreshMessages = refreshMessages;
-        window.exportMessages = exportMessages;
+        window.markAllNotificationsAsRead = markAllNotificationsAsRead;
+        window.refreshNotifications = refreshNotifications;
+        window.exportNotifications = exportNotifications;
         window.closeNotification = closeNotification;
+        window.showNotification = showNotification;
     </script>
 </body>
 </html>
