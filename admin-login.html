@@ -186,12 +186,29 @@
             padding: 1rem;
             border-radius: 0.5rem;
             text-align: center;
+            display: none;
         }
         
-        .error {
+        #loginMessage.show {
+            display: block;
+        }
+        
+        #loginMessage.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+        
+        #loginMessage.error {
             background: #fee2e2;
             color: #991b1b;
             border: 1px solid #fecaca;
+        }
+        
+        #loginMessage.info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
         }
         
         @media (max-width: 768px) {
@@ -248,13 +265,13 @@
                 <form id="loginForm">
                     <div class="form-group">
                         <label for="email">Email Address</label>
-                        <input type="email" id="email" class="form-control" placeholder="admin@starlinkwifi.com" required>
+                        <input type="email" id="email" class="form-control" placeholder="admin@starlinkwifi.com" required autocomplete="email">
                     </div>
                     
                     <div class="form-group">
                         <label for="password">Password</label>
                         <div class="password-input">
-                            <input type="password" id="password" class="form-control" placeholder="Enter your password" required>
+                            <input type="password" id="password" class="form-control" placeholder="Enter your password" required autocomplete="current-password">
                             <button type="button" class="toggle-password" id="togglePassword">
                                 <i class="fas fa-eye"></i>
                             </button>
@@ -271,7 +288,6 @@
                 
                 <div class="login-footer">
                     <p><a href="index.html"><i class="fas fa-arrow-left"></i> Back to Website</a></p>
-                    <p>Default credentials: admin@starlinkwifi.com / admin123</p>
                 </div>
             </div>
         </div>
@@ -280,9 +296,16 @@
     <script type="module">
         import { adminAuth } from './js/supabase-config.js';
         
+        // DOM elements
+        const loginForm = document.getElementById('loginForm');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const togglePasswordBtn = document.getElementById('togglePassword');
+        const loginBtn = document.getElementById('loginBtn');
+        const messageDiv = document.getElementById('loginMessage');
+        
         // Toggle password visibility
-        document.getElementById('togglePassword').addEventListener('click', function() {
-            const passwordInput = document.getElementById('password');
+        togglePasswordBtn.addEventListener('click', function() {
             const icon = this.querySelector('i');
             
             if (passwordInput.type === 'password') {
@@ -294,65 +317,116 @@
             }
         });
         
+        // Show message function
+        function showMessage(message, type) {
+            messageDiv.textContent = message;
+            messageDiv.className = type;
+            messageDiv.classList.add('show');
+        }
+        
+        // Clear message function
+        function clearMessage() {
+            messageDiv.textContent = '';
+            messageDiv.className = '';
+            messageDiv.classList.remove('show');
+        }
+        
+        // Set loading state
+        function setLoading(isLoading) {
+            if (isLoading) {
+                loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Signing in...</span>';
+                loginBtn.disabled = true;
+            } else {
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i><span>Sign In</span>';
+                loginBtn.disabled = false;
+            }
+        }
+        
         // Handle login form submission
-        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+        loginForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const loginBtn = document.getElementById('loginBtn');
-            const messageDiv = document.getElementById('loginMessage');
+            const email = emailInput.value.trim();
+            const password = passwordInput.value.trim();
             
-            // Show loading
-            loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Signing in...</span>';
-            loginBtn.disabled = true;
+            // Validate inputs
+            if (!email || !password) {
+                showMessage('Please enter both email and password', 'error');
+                emailInput.focus();
+                return;
+            }
+            
+            // Basic email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                showMessage('Please enter a valid email address', 'error');
+                emailInput.focus();
+                return;
+            }
             
             // Clear previous messages
-            messageDiv.innerHTML = '';
-            messageDiv.className = '';
+            clearMessage();
+            
+            // Show loading
+            setLoading(true);
             
             try {
+                // Attempt login
                 const result = await adminAuth.login(email, password);
                 
                 if (result.success) {
                     // Show success message
-                    messageDiv.innerHTML = '<i class="fas fa-check-circle"></i> Login successful! Redirecting...';
-                    messageDiv.className = 'success';
+                    showMessage('Login successful! Redirecting to admin panel...', 'success');
                     
-                    // Redirect to admin panel after 1 second
+                    // Redirect to admin panel after 1.5 seconds
                     setTimeout(() => {
                         window.location.href = 'admin.html';
-                    }, 1000);
+                    }, 1500);
                     
                 } else {
                     // Show error message
-                    messageDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${result.message}`;
-                    messageDiv.className = 'error';
+                    showMessage(result.message, 'error');
+                    
+                    // Clear password field on error
+                    passwordInput.value = '';
+                    passwordInput.focus();
                     
                     // Reset button
-                    loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i><span>Sign In</span>';
-                    loginBtn.disabled = false;
+                    setLoading(false);
                 }
                 
             } catch (error) {
                 console.error('Login error:', error);
                 
-                messageDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> An error occurred. Please try again.';
-                messageDiv.className = 'error';
+                // Show user-friendly error message
+                showMessage('Unable to connect to authentication service. Please try again.', 'error');
                 
                 // Reset button
-                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i><span>Sign In</span>';
-                loginBtn.disabled = false;
+                setLoading(false);
             }
         });
         
         // Auto-focus email field
-        document.getElementById('email').focus();
+        emailInput.focus();
         
         // Check if already logged in
         if (adminAuth.isAuthenticated()) {
-            window.location.href = 'admin.html';
+            showMessage('You are already logged in. Redirecting...', 'info');
+            setTimeout(() => {
+                window.location.href = 'admin.html';
+            }, 1500);
         }
+        
+        // Add enter key support
+        passwordInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                loginForm.dispatchEvent(new Event('submit'));
+            }
+        });
+        
+        // Clear message when user starts typing
+        emailInput.addEventListener('input', clearMessage);
+        passwordInput.addEventListener('input', clearMessage);
     </script>
 </body>
 </html>
