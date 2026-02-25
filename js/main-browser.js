@@ -91,30 +91,23 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Fix messages notification button
+    // Fix messages notification button - SINGLE handler
     var messagesBtn = document.getElementById('messages-notification');
     if (messagesBtn) {
         // Remove any existing handlers
         messagesBtn.onclick = null;
         
-        // Add direct click handler
+        // Add single click handler
         messagesBtn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
             console.log('Messages button clicked');
             
-            // Open notifications modal - use the global function
+            // Open notifications modal
             if (typeof window.openNotificationsModal === 'function') {
                 window.openNotificationsModal();
             } else {
                 console.error('openNotificationsModal function not found');
-                // Fallback
-                var modal = document.getElementById('messagesModal');
-                if (modal) {
-                    modal.style.display = 'block';
-                    document.body.style.overflow = 'hidden';
-                    loadNotifications();
-                }
             }
         });
     }
@@ -262,7 +255,7 @@ function setupContactForm() {
                 if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
                     backendUrl = 'http://localhost:3000';
                 } else {
-                    backendUrl = 'https://starlink-wifi-backend-v862.onrender.com';
+                    backendUrl = 'https://starlink-wifi-backend.onrender.com';
                 }
                 
                 var response = await fetch(backendUrl + '/api/contact', {
@@ -398,7 +391,7 @@ function createBundleCard(bundle, key) {
     return bundleCard;
 }
 
-// Load gallery preview from Supabase
+// Load gallery preview from Supabase - FIXED: synchronous element creation
 async function loadGalleryPreview() {
     var previewContainer = document.getElementById('gallery-preview-container');
     
@@ -437,10 +430,10 @@ async function loadGalleryPreview() {
             return;
         }
         
-        // Load each gallery item
+        // Create and append all preview items synchronously
         for (var i = 0; i < data.length; i++) {
             var item = data[i];
-            var element = await createGalleryPreviewItem(item, item.id);
+            var element = createGalleryPreviewItem(item, item.id);
             previewContainer.appendChild(element);
         }
         
@@ -457,55 +450,51 @@ async function loadGalleryPreview() {
     }
 }
 
+// Synchronous gallery preview item creation - NO PROMISES
 function createGalleryPreviewItem(item, key) {
-    return new Promise(function(resolve) {
-        var galleryItem = document.createElement('div');
-        galleryItem.className = 'gallery-preview-item';
-        
-        var imageUrl = item.image_url || item.url;
-        var img = document.createElement('img');
-        img.alt = item.title || 'Project Image';
-        img.loading = 'lazy';
-        
-        // Handle image load error
-        img.onerror = function() {
-            console.warn('Failed to load image:', imageUrl);
-            this.src = 'https://via.placeholder.com/400x300?text=Image+Not+Available';
-            this.onerror = null;
-            resolve(galleryItem);
-        };
-        
-        img.onload = function() {
-            resolve(galleryItem);
-        };
-        
-        img.src = imageUrl;
-        
-        var overlay = document.createElement('div');
-        overlay.style.cssText = 'position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.7); color: white; padding: 1rem;';
-        
-        var description = '';
-        if (item.description) {
-            description = item.description.substring(0, 100);
-            if (item.description.length > 100) {
-                description += '...';
-            }
+    var galleryItem = document.createElement('div');
+    galleryItem.className = 'gallery-preview-item';
+    
+    var imageUrl = item.image_url || item.url;
+    
+    // Create image element
+    var img = document.createElement('img');
+    img.alt = item.title || 'Project Image';
+    img.loading = 'lazy';
+    
+    // Set up error handler BEFORE setting src
+    img.onerror = function() {
+        console.warn('Failed to load preview image:', imageUrl);
+        this.src = 'https://via.placeholder.com/400x300?text=Image+Not+Available';
+        this.onerror = null;
+    };
+    
+    // Set the src to start loading (async)
+    img.src = imageUrl;
+    
+    galleryItem.appendChild(img);
+    
+    // Create overlay with title and description
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.7); color: white; padding: 1rem;';
+    
+    var description = '';
+    if (item.description) {
+        description = item.description.substring(0, 100);
+        if (item.description.length > 100) {
+            description += '...';
         }
-        
-        overlay.innerHTML = '<h4 style="margin: 0; font-size: 1rem;">' + (item.title || 'Project') + '</h4>' +
-            '<p style="margin: 0.5rem 0 0; font-size: 0.875rem; opacity: 0.9;">' + description + '</p>';
-        
-        galleryItem.appendChild(img);
-        galleryItem.appendChild(overlay);
-        
-        // Resolve immediately if image already loaded or failed
-        if (img.complete) {
-            resolve(galleryItem);
-        }
-    });
+    }
+    
+    overlay.innerHTML = '<h4 style="margin: 0; font-size: 1rem;">' + (item.title || 'Project') + '</h4>' +
+        '<p style="margin: 0.5rem 0 0; font-size: 0.875rem; opacity: 0.9;">' + description + '</p>';
+    
+    galleryItem.appendChild(overlay);
+    
+    return galleryItem;
 }
 
-// Load full gallery for modal from Supabase
+// Load full gallery for modal from Supabase - FIXED: synchronous element creation
 async function loadFullGallery() {
     var modalContainer = document.getElementById('modalGalleryContainer');
     
@@ -531,6 +520,7 @@ async function loadFullGallery() {
             throw error;
         }
         
+        // Clear the container first
         modalContainer.innerHTML = '';
         
         if (!data || data.length === 0) {
@@ -542,10 +532,10 @@ async function loadFullGallery() {
             return;
         }
         
-        // Load all gallery items
+        // Create and append all gallery items synchronously - NO AWAIT
         for (var i = 0; i < data.length; i++) {
             var item = data[i];
-            var element = await createModalGalleryItem(item, 'full-' + item.id + '-' + i);
+            var element = createModalGalleryItem(item, 'full-' + item.id + '-' + i);
             modalContainer.appendChild(element);
         }
         
@@ -564,43 +554,39 @@ async function loadFullGallery() {
     }
 }
 
+// Synchronous gallery item creation - NO PROMISES, NO WAITING
 function createModalGalleryItem(item, key) {
-    return new Promise(function(resolve) {
-        var galleryItem = document.createElement('div');
-        galleryItem.className = 'modal-gallery-item';
-        galleryItem.dataset.filter = item.category || 'all';
-        
-        var imageUrl = item.image_url || item.url;
-        var img = document.createElement('img');
-        img.alt = item.title || 'Project Image';
-        img.loading = 'lazy';
-        img.dataset.fullSrc = imageUrl;
-        
-        // Handle image load error
-        img.onerror = function() {
-            console.warn('Failed to load image:', imageUrl);
-            this.src = 'https://via.placeholder.com/400x300?text=Image+Not+Available';
-            this.onerror = null;
-            resolve(galleryItem);
-        };
-        
-        img.onload = function() {
-            resolve(galleryItem);
-        };
-        
-        img.src = imageUrl;
-        
-        galleryItem.appendChild(img);
-        
-        galleryItem.addEventListener('click', function() {
-            showFullImage(imageUrl, item.title || 'Project Image');
-        });
-        
-        // Resolve immediately if image already loaded or failed
-        if (img.complete) {
-            resolve(galleryItem);
-        }
+    var galleryItem = document.createElement('div');
+    galleryItem.className = 'modal-gallery-item';
+    galleryItem.dataset.filter = item.category || 'all';
+    
+    var imageUrl = item.image_url || item.url;
+    
+    // Create image element
+    var img = document.createElement('img');
+    img.alt = item.title || 'Project Image';
+    img.loading = 'lazy';
+    img.dataset.fullSrc = imageUrl;
+    
+    // Set up error handler BEFORE setting src
+    img.onerror = function() {
+        console.warn('Failed to load image:', imageUrl);
+        // Replace with placeholder on error
+        this.src = 'https://via.placeholder.com/400x300?text=Image+Not+Available';
+        this.onerror = null; // Prevent infinite loop if placeholder also fails
+    };
+    
+    // Set the src to start loading (async)
+    img.src = imageUrl;
+    
+    galleryItem.appendChild(img);
+    
+    // Add click handler for full-size view
+    galleryItem.addEventListener('click', function() {
+        showFullImage(imageUrl, item.title || 'Project Image');
     });
+    
+    return galleryItem;
 }
 
 // Function to show full-size image in modal
