@@ -21,7 +21,6 @@ function initializeSupabase() {
         }
     } else {
         console.warn('Supabase client library not loaded. Some features will not work.');
-        console.warn('Make sure to load Supabase CDN before this script.');
         return false;
     }
 }
@@ -90,36 +89,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Fix messages button - prevent scroll behavior
+    // Fix messages notification button - direct click handler for button element
     const messagesBtn = document.getElementById('messages-notification');
     if (messagesBtn) {
+        // Remove any existing handlers
         messagesBtn.onclick = null;
+        
+        // Add direct click handler
         messagesBtn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            e.stopImmediatePropagation();
+            console.log('Messages button clicked'); // Debug log
             
-            // Open notifications modal instead of scrolling
+            // Open notifications modal
             if (typeof openNotificationsModal === 'function') {
                 openNotificationsModal();
+            } else {
+                console.error('openNotificationsModal function not found');
             }
-        }, true);
-        
-        const parentLi = messagesBtn.closest('li');
-        if (parentLi) {
-            parentLi.addEventListener('click', function(e) {
-                if (e.target.closest('#messages-notification')) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }
-            }, true);
-        }
+        });
     }
     
-    // Smooth scrolling for anchor links (excluding messages button)
+    // Smooth scrolling for anchor links only
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        if (anchor.id === 'messages-notification') return;
-        
         anchor.addEventListener('click', function(e) {
             if (this.getAttribute('href').startsWith('#') && 
                 this.getAttribute('href') !== '#') {
@@ -143,11 +135,40 @@ document.addEventListener('DOMContentLoaded', () => {
         loadNotifications();
         // Check for new notifications periodically
         setInterval(checkForNewNotifications, 30000);
+    } else {
+        // Show error message if Supabase not initialized
+        showSupabaseError();
     }
     
     // Set up contact form (sends to email, not database)
     setupContactForm();
 });
+
+function showSupabaseError() {
+    // Show error in bundles and gallery sections
+    const bundlesContainer = document.getElementById('bundles-container');
+    const previewContainer = document.getElementById('gallery-preview-container');
+    
+    if (bundlesContainer) {
+        bundlesContainer.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
+                <h3>Connection Error</h3>
+                <p>Unable to connect to server. Please refresh the page.</p>
+            </div>
+        `;
+    }
+    
+    if (previewContainer) {
+        previewContainer.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
+                <h3>Connection Error</h3>
+                <p>Unable to load gallery. Please refresh the page.</p>
+            </div>
+        `;
+    }
+}
 
 // Function to check for new notifications
 async function checkForNewNotifications() {
@@ -167,7 +188,7 @@ async function checkForNewNotifications() {
         if (!error && data && data.length > 0) {
             // Show notification for new updates
             const latestNotification = data[0];
-            showNotification('New Update', latestNotification.message);
+            showNotification('New Update', latestNotification.message || latestNotification.content);
             
             // Update notifications badge
             updateNotificationsBadge();
@@ -292,7 +313,7 @@ async function loadBundles() {
     
     try {
         if (!supabaseClient) {
-            throw new Error('Supabase client not initialized. Please refresh the page.');
+            throw new Error('Supabase client not initialized');
         }
         
         // Fetch bundles from Supabase
@@ -326,7 +347,7 @@ async function loadBundles() {
         });
         
     } catch (error) {
-        console.error('Error loading bundles from Supabase:', error);
+        console.error('Error loading bundles:', error);
         bundlesContainer.innerHTML = `
             <div class="no-bundles" style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
                 <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
@@ -350,7 +371,6 @@ function createBundleCard(bundle, key) {
         if (Array.isArray(bundle.features)) {
             featuresList = bundle.features.map(feature => `<li><i class="fas fa-check"></i> ${feature}</li>`).join('');
         } else if (typeof bundle.features === 'string') {
-            // If features is a comma-separated string
             const featuresArray = bundle.features.split(',').map(f => f.trim());
             featuresList = featuresArray.map(feature => `<li><i class="fas fa-check"></i> ${feature}</li>`).join('');
         }
@@ -368,7 +388,7 @@ function createBundleCard(bundle, key) {
     return bundleCard;
 }
 
-// Load gallery preview from Supabase
+// Load gallery preview from Supabase with error handling for images
 async function loadGalleryPreview() {
     const previewContainer = document.getElementById('gallery-preview-container');
     
@@ -384,7 +404,7 @@ async function loadGalleryPreview() {
     
     try {
         if (!supabaseClient) {
-            throw new Error('Supabase client not initialized. Please refresh the page.');
+            throw new Error('Supabase client not initialized');
         }
         
         const { data, error } = await supabaseClient
@@ -411,12 +431,16 @@ async function loadGalleryPreview() {
             return;
         }
         
-        data.forEach(item => {
-            previewContainer.appendChild(createGalleryPreviewItem(item, item.id));
+        // Load each gallery item with image error handling
+        const loadPromises = data.map(async (item) => {
+            const element = await createGalleryPreviewItem(item, item.id);
+            previewContainer.appendChild(element);
         });
         
+        await Promise.all(loadPromises);
+        
     } catch (error) {
-        console.error('Error loading gallery preview from Supabase:', error);
+        console.error('Error loading gallery preview:', error);
         previewContainer.innerHTML = `
             <div style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
                 <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
@@ -431,20 +455,43 @@ async function loadGalleryPreview() {
 }
 
 function createGalleryPreviewItem(item, key) {
-    const galleryItem = document.createElement('div');
-    galleryItem.className = 'gallery-preview-item';
-    
-    const imageUrl = item.image_url || item.url;
-    
-    galleryItem.innerHTML = `
-        <img src="${imageUrl}" alt="${item.title || 'Project Image'}" loading="lazy">
-        <div style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.7); color: white; padding: 1rem;">
+    return new Promise((resolve) => {
+        const galleryItem = document.createElement('div');
+        galleryItem.className = 'gallery-preview-item';
+        
+        const imageUrl = item.image_url || item.url;
+        const img = document.createElement('img');
+        img.alt = item.title || 'Project Image';
+        img.loading = 'lazy';
+        
+        // Handle image load error
+        img.onerror = function() {
+            console.warn('Failed to load image:', imageUrl);
+            this.src = 'https://via.placeholder.com/400x300?text=Image+Not+Available';
+            this.onerror = null; // Prevent infinite loop
+        };
+        
+        img.onload = function() {
+            resolve(galleryItem);
+        };
+        
+        img.src = imageUrl;
+        
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.7); color: white; padding: 1rem;';
+        overlay.innerHTML = `
             <h4 style="margin: 0; font-size: 1rem;">${item.title || 'Project'}</h4>
             <p style="margin: 0.5rem 0 0; font-size: 0.875rem; opacity: 0.9;">${item.description ? item.description.substring(0, 100) + (item.description.length > 100 ? '...' : '') : ''}</p>
-        </div>
-    `;
-    
-    return galleryItem;
+        `;
+        
+        galleryItem.appendChild(img);
+        galleryItem.appendChild(overlay);
+        
+        // Resolve immediately if image already loaded or failed
+        if (img.complete) {
+            resolve(galleryItem);
+        }
+    });
 }
 
 // Load full gallery for modal from Supabase
@@ -462,7 +509,7 @@ async function loadFullGallery() {
     
     try {
         if (!supabaseClient) {
-            throw new Error('Supabase client not initialized. Please refresh the page.');
+            throw new Error('Supabase client not initialized');
         }
         
         const { data, error } = await supabaseClient
@@ -488,14 +535,17 @@ async function loadFullGallery() {
             return;
         }
         
-        data.forEach((item, index) => {
-            modalContainer.appendChild(createModalGalleryItem(item, `full-${item.id}-${index}`));
+        // Load all gallery items
+        const loadPromises = data.map(async (item, index) => {
+            const element = await createModalGalleryItem(item, `full-${item.id}-${index}`);
+            modalContainer.appendChild(element);
         });
         
+        await Promise.all(loadPromises);
         setupGalleryFilters();
         
     } catch (error) {
-        console.error('Error loading full gallery from Supabase:', error);
+        console.error('Error loading full gallery:', error);
         modalContainer.innerHTML = `
             <div style="grid-column: 1 / -1; text-align: center; padding: 4rem;">
                 <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
@@ -510,21 +560,42 @@ async function loadFullGallery() {
 }
 
 function createModalGalleryItem(item, key) {
-    const galleryItem = document.createElement('div');
-    galleryItem.className = 'modal-gallery-item';
-    galleryItem.dataset.filter = item.category || 'all';
-    
-    const imageUrl = item.image_url || item.url;
-    
-    galleryItem.innerHTML = `
-        <img src="${imageUrl}" alt="${item.title || 'Project Image'}" loading="lazy" data-full-src="${imageUrl}">
-    `;
-    
-    galleryItem.addEventListener('click', () => {
-        showFullImage(imageUrl, item.title || 'Project Image');
+    return new Promise((resolve) => {
+        const galleryItem = document.createElement('div');
+        galleryItem.className = 'modal-gallery-item';
+        galleryItem.dataset.filter = item.category || 'all';
+        
+        const imageUrl = item.image_url || item.url;
+        const img = document.createElement('img');
+        img.alt = item.title || 'Project Image';
+        img.loading = 'lazy';
+        img.dataset.fullSrc = imageUrl;
+        
+        // Handle image load error
+        img.onerror = function() {
+            console.warn('Failed to load image:', imageUrl);
+            this.src = 'https://via.placeholder.com/400x300?text=Image+Not+Available';
+            this.onerror = null;
+            resolve(galleryItem);
+        };
+        
+        img.onload = function() {
+            resolve(galleryItem);
+        };
+        
+        img.src = imageUrl;
+        
+        galleryItem.appendChild(img);
+        
+        galleryItem.addEventListener('click', () => {
+            showFullImage(imageUrl, item.title || 'Project Image');
+        });
+        
+        // Resolve immediately if image already loaded or failed
+        if (img.complete) {
+            resolve(galleryItem);
+        }
     });
-    
-    return galleryItem;
 }
 
 // Function to show full-size image in modal
@@ -539,7 +610,7 @@ function showFullImage(imageUrl, title) {
                 <button class="full-image-close" id="fullImageClose">
                     <i class="fas fa-times"></i>
                 </button>
-                <img id="fullImage" src="" alt="">
+                <img id="fullImage" src="" alt="" style="max-width: 90%; max-height: 90%; object-fit: contain;">
             </div>
         `;
         document.body.appendChild(fullImageModal);
@@ -552,8 +623,15 @@ function showFullImage(imageUrl, title) {
         });
     }
     
-    document.getElementById('fullImage').src = imageUrl;
-    document.getElementById('fullImage').alt = title;
+    const fullImage = document.getElementById('fullImage');
+    fullImage.src = imageUrl;
+    fullImage.alt = title;
+    
+    // Handle error in full image modal
+    fullImage.onerror = function() {
+        this.src = 'https://via.placeholder.com/800x600?text=Image+Not+Available';
+    };
+    
     fullImageModal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
 }
@@ -635,7 +713,6 @@ async function loadNotifications() {
             .order('created_at', { ascending: false });
         
         if (error) {
-            console.error('Supabase error:', error);
             throw error;
         }
         
@@ -698,9 +775,8 @@ function displayNotifications(notifications) {
     localStorage.setItem('lastNotificationsView', new Date().toISOString());
 }
 
-// Helper function to get current user ID (you can implement this based on your user system)
+// Helper function to get current user ID
 function getCurrentUserId() {
-    // For now, use a session-based or localStorage ID
     let userId = localStorage.getItem('userId');
     if (!userId) {
         userId = 'user_' + Math.random().toString(36).substr(2, 9);
@@ -754,7 +830,6 @@ async function markAllNotificationsAsRead() {
         for (const item of unreadItems) {
             const notificationId = item.dataset.id;
             
-            // Get current notification
             const { data: notification } = await supabaseClient
                 .from('notifications')
                 .select('read_by')
@@ -810,11 +885,12 @@ async function updateNotificationsBadge() {
         }
         
     } catch (error) {
-        console.error('Error updating notifications badge:', error);
+        console.error('Error updating badge:', error);
     }
 }
 
 function openNotificationsModal() {
+    console.log('Opening notifications modal'); // Debug log
     const modal = document.getElementById('messagesModal');
     const modalTitle = document.getElementById('messagesModalTitle');
     
@@ -827,6 +903,8 @@ function openNotificationsModal() {
         modal.style.display = 'block';
         document.body.style.overflow = 'hidden';
         loadNotifications();
+    } else {
+        console.error('Messages modal not found');
     }
 }
 
