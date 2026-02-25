@@ -1,12 +1,12 @@
 // js/supabase-config.js - Supabase database configuration
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // Configuration from environment variables
-const SUPABASE_URL = 'https://jgaeldguwezbgglwaivz.supabase.co'; // Replace with your Supabase URL
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpnYWVsZGd1d2V6YmdnbHdhaXZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1Nzg1NTAsImV4cCI6MjA4NjE1NDU1MH0.pAkRxRs1gvmrJJR_CNietYes6ju6qOMP8Etnpr3TtyQ'; // Replace with your Supabase anon key
+const SUPABASE_URL = 'https://jgaeldguwezbgglwaivz.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpnYWVsZGd1d2V6YmdnbHdhaXZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1Nzg1NTAsImV4cCI6MjA4NjE1NDU1MH0.pAkRxRs1gvmrJJR_CNietYes6ju6qOMP8Etnpr3TtyQ';
 
 // Create Supabase client
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Database operations class
 class DatabaseManager {
@@ -212,35 +212,51 @@ class DatabaseManager {
         }
     }
 
-    // Admin operations
+    // Admin operations - Updated to use Supabase Auth
     async authenticateAdmin(email, password) {
         try {
-            // In production, you'd use Supabase Auth
-            // This is a simplified version for demo
-            const { data, error } = await this.client
+            // Use Supabase Auth for authentication
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: email,
+                password: password
+            });
+
+            if (error) throw error;
+
+            // Get admin profile from admins table
+            const { data: adminData, error: profileError } = await this.client
                 .from('admins')
                 .select('*')
                 .eq('email', email)
                 .eq('is_active', true)
                 .single();
 
-            if (error) throw error;
-            
-            // Simple password check (in production, use proper auth)
-            if (data.password === password) {
+            if (profileError) {
+                // Admin authenticated but not found in admins table
                 return { 
-                    success: true, 
-                    user: { 
-                        id: data.id, 
-                        email: data.email, 
-                        name: data.name 
-                    } 
+                    success: false, 
+                    error: 'Admin account not found or inactive' 
                 };
             }
-            
-            return { success: false, error: 'Invalid credentials' };
+
+            return { 
+                success: true, 
+                user: { 
+                    id: adminData.id, 
+                    email: adminData.email, 
+                    name: adminData.name,
+                    role: adminData.role || 'admin'
+                },
+                session: data.session
+            };
         } catch (error) {
             console.error('Error authenticating admin:', error);
+            
+            // Handle specific auth errors
+            if (error.message === 'Invalid login credentials') {
+                return { success: false, error: 'Invalid email or password' };
+            }
+            
             return { success: false, error: error.message };
         }
     }
@@ -259,16 +275,102 @@ class DatabaseManager {
             return { success: false, error: error.message, count: 0 };
         }
     }
+
+    async getCurrentAdmin() {
+        try {
+            const { data: { user }, error } = await supabase.auth.getUser();
+            
+            if (error) throw error;
+            if (!user) return { success: false, error: 'Not authenticated' };
+
+            // Get admin profile
+            const { data: adminData, error: profileError } = await this.client
+                .from('admins')
+                .select('*')
+                .eq('email', user.email)
+                .single();
+
+            if (profileError) throw profileError;
+
+            return { 
+                success: true, 
+                user: {
+                    id: adminData.id,
+                    email: adminData.email,
+                    name: adminData.name,
+                    role: adminData.role
+                }
+            };
+        } catch (error) {
+            console.error('Error getting current admin:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async signOut() {
+        try {
+            const { error } = await supabase.auth.signOut();
+            if (error) throw error;
+            return { success: true };
+        } catch (error) {
+            console.error('Error signing out:', error);
+            return { success: false, error: error.message };
+        }
+    }
 }
 
 // Create singleton instance
 const database = new DatabaseManager();
 
-// Admin authentication helper
+// Admin authentication helper - Updated to use Supabase Auth
 class AdminAuth {
     constructor() {
-        this.authenticated = !!localStorage.getItem('adminAuthenticated');
-        this.user = JSON.parse(localStorage.getItem('adminUser') || 'null');
+        this.authenticated = false;
+        this.user = null;
+        this.initAuth();
+    }
+
+    async initAuth() {
+        // Check for existing session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            const result = await database.getCurrentAdmin();
+            if (result.success) {
+                this.authenticated = true;
+                this.user = result.user;
+                this._saveToStorage();
+            }
+        }
+
+        // Listen for auth changes
+        supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN' && session) {
+                this._refreshUser();
+            } else if (event === 'SIGNED_OUT') {
+                this.authenticated = false;
+                this.user = null;
+                this._clearStorage();
+            }
+        });
+    }
+
+    async _refreshUser() {
+        const result = await database.getCurrentAdmin();
+        if (result.success) {
+            this.authenticated = true;
+            this.user = result.user;
+            this._saveToStorage();
+        }
+    }
+
+    _saveToStorage() {
+        localStorage.setItem('adminAuthenticated', 'true');
+        localStorage.setItem('adminUser', JSON.stringify(this.user));
+    }
+
+    _clearStorage() {
+        localStorage.removeItem('adminAuthenticated');
+        localStorage.removeItem('adminUser');
     }
 
     isAuthenticated() {
@@ -286,9 +388,8 @@ class AdminAuth {
             if (result.success) {
                 this.authenticated = true;
                 this.user = result.user;
-                localStorage.setItem('adminAuthenticated', 'true');
-                localStorage.setItem('adminUser', JSON.stringify(result.user));
-                return { success: true };
+                this._saveToStorage();
+                return { success: true, user: result.user };
             }
             
             return result;
@@ -297,16 +398,27 @@ class AdminAuth {
         }
     }
 
-    logout() {
+    async logout() {
+        const result = await database.signOut();
         this.authenticated = false;
         this.user = null;
-        localStorage.removeItem('adminAuthenticated');
-        localStorage.removeItem('adminUser');
+        this._clearStorage();
+        return result;
+    }
+
+    async checkSession() {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session && this.authenticated) {
+            // Session expired but local state says authenticated
+            this.authenticated = false;
+            this.user = null;
+            this._clearStorage();
+        }
+        return this.authenticated;
     }
 }
 
 const adminAuth = new AdminAuth();
 
 // Export for use in other modules
-
 export { database, adminAuth, supabase };
