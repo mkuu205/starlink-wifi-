@@ -149,5 +149,7 @@ emailNotifier.healthCheck().then(result => {
   }
 });
 
-// Export
-export { emailNotifier, BrowserEmailNotifier };
+// Export to global scope
+window.emailNotifier = emailNotifier;
+window.BrowserEmailNotifier = BrowserEmailNotifier;
+
