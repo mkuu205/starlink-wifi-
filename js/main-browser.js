@@ -1,7 +1,7 @@
-// main-browser.js - Main Website Script with Fixes
+// main-browser.js - Complete Main Website Script with Notification System
 // Email: support@starlinktokenwifi.com (forwards to billnjehia18@gmail.com)
 
-console.log('Starlink Token WiFi - Main Script Loading...');
+console.log('🚀 Starlink Token WiFi - Main Script Loading...');
 
 // Supabase Configuration
 const SUPABASE_URL = 'https://jgaeldguwezbgglwaivz.supabase.co';
@@ -11,6 +11,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 let supabaseClient = null;
 let messaging = null;
 let fcmToken = null;
+let notificationSystem = null;
+
+// ==================== SUPABASE INITIALIZATION ====================
 
 // Initialize Supabase
 function initializeSupabase() {
@@ -27,6 +30,407 @@ function initializeSupabase() {
   console.warn('⚠️ Supabase library not loaded');
   return false;
 }
+
+// ==================== NOTIFICATION SYSTEM ====================
+
+// Notification System Class
+class NotificationSystem {
+  constructor() {
+    this.supabase = supabaseClient;
+    this.pollInterval = 30000; // 30 seconds
+    this.lastCheck = localStorage.getItem('lastNotificationCheck') || new Date(0).toISOString();
+    this.notifications = [];
+    this.unreadCount = 0;
+    this.backendUrl = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? 'http://localhost:3000'
+      : 'https://starlink-wifi-backend-v862.onrender.com';
+    this.init();
+  }
+  
+  init() {
+    console.log('🔔 Initializing notification system...');
+    this.setupNotificationCenter();
+    this.startPolling();
+    this.setupToast();
+  }
+  
+  setupToast() {
+    // Create toast if it doesn't exist
+    if (!document.getElementById('notification-toast')) {
+      const toast = document.createElement('div');
+      toast.id = 'notification-toast';
+      toast.className = 'notification-toast';
+      toast.innerHTML = `
+        <div class="toast-icon">
+          <i class="fas fa-bell"></i>
+        </div>
+        <div class="toast-content">
+          <div class="toast-title" id="toast-title">New Notification</div>
+          <div class="toast-message" id="toast-message"></div>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.classList.remove('show')">
+          <i class="fas fa-times"></i>
+        </button>
+      `;
+      document.body.appendChild(toast);
+    }
+  }
+  
+  startPolling() {
+    console.log('🔔 Starting notification polling every 30 seconds...');
+    this.checkForNewNotifications();
+    setInterval(() => this.checkForNewNotifications(), this.pollInterval);
+  }
+  
+  async checkForNewNotifications() {
+    try {
+      if (!this.supabase) return;
+      
+      const { data, error } = await this.supabase
+        .from('notifications')
+        .select('*')
+        .eq('sent', true)
+        .gt('created_at', this.lastCheck)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        console.log(`📬 Received ${data.length} new notifications`);
+        
+        // Add to notifications array
+        this.notifications = [...data, ...this.notifications];
+        
+        // Show toast for each new notification (limit to avoid spam)
+        data.slice(0, 3).forEach(notification => {
+          this.showNotificationToast(
+            notification.title || 'New Update',
+            notification.message || notification.content || ''
+          );
+        });
+        
+        // Update the notification center
+        this.updateNotificationCenter();
+        
+        // Update badge
+        this.unreadCount += data.length;
+        this.updateBadge();
+        
+        // Play sound for urgent notifications
+        if (data.some(n => n.priority === 'urgent')) {
+          this.playNotificationSound();
+        }
+      }
+      
+      // Update last check time
+      this.lastCheck = new Date().toISOString();
+      localStorage.setItem('lastNotificationCheck', this.lastCheck);
+      
+    } catch (error) {
+      console.error('Error checking notifications:', error);
+    }
+  }
+  
+  showNotificationToast(title, message) {
+    const toast = document.getElementById('notification-toast');
+    const titleElement = document.getElementById('toast-title');
+    const messageElement = document.getElementById('toast-message');
+    
+    if (toast && titleElement && messageElement) {
+      titleElement.textContent = title;
+      messageElement.textContent = message;
+      toast.classList.add('show');
+      
+      // Auto hide after 8 seconds
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 8000);
+    }
+  }
+  
+  playNotificationSound() {
+    // Optional: Play sound for urgent notifications
+    // const audio = new Audio('/notification.mp3');
+    // audio.play().catch(e => console.log('Audio play failed:', e));
+  }
+  
+  setupNotificationCenter() {
+    // Check if modal exists, if not create it
+    if (!document.getElementById('messagesModal')) {
+      this.createNotificationModal();
+    }
+    
+    // Setup close button
+    const closeBtn = document.querySelector('#messagesModal .close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => this.closeNotificationCenter());
+    }
+    
+    // Setup mark all read button
+    const markAllBtn = document.getElementById('mark-all-read');
+    if (markAllBtn) {
+      markAllBtn.addEventListener('click', () => this.markAllAsRead());
+    }
+    
+    // Setup refresh button
+    const refreshBtn = document.getElementById('refresh-notifications');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => this.refreshNotifications());
+    }
+    
+    // Setup export button
+    const exportBtn = document.getElementById('export-notifications');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', () => this.exportNotifications());
+    }
+  }
+  
+  createNotificationModal() {
+    const modal = document.createElement('div');
+    modal.id = 'messagesModal';
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2><i class="fas fa-bell"></i> Notifications & Updates</h2>
+          <div class="modal-actions">
+            <button id="refresh-notifications" class="btn-icon" title="Refresh">
+              <i class="fas fa-sync-alt"></i>
+            </button>
+            <button id="export-notifications" class="btn-icon" title="Export">
+              <i class="fas fa-download"></i>
+            </button>
+            <button id="mark-all-read" class="btn-icon" title="Mark all as read">
+              <i class="fas fa-check-double"></i>
+            </button>
+            <span class="close">&times;</span>
+          </div>
+        </div>
+        <div class="modal-body">
+          <div id="messagesContainer" class="messages-container">
+            <div class="loading-spinner">
+              <i class="fas fa-spinner fa-spin"></i> Loading notifications...
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <span id="notification-count">0 unread</span>
+          <button onclick="notificationSystem?.markAllAsRead()" class="btn-link">
+            Mark all read
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+  }
+  
+  async loadNotifications() {
+    try {
+      const container = document.getElementById('messagesContainer');
+      if (!container) return;
+      
+      container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Loading notifications...</div>';
+      
+      if (!this.supabase) {
+        container.innerHTML = '<div class="error-message">Database connection not available</div>';
+        return;
+      }
+      
+      const { data, error } = await this.supabase
+        .from('notifications')
+        .select('*')
+        .eq('sent', true)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      
+      if (error) throw error;
+      
+      this.notifications = data || [];
+      this.updateNotificationCenter();
+      
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+      const container = document.getElementById('messagesContainer');
+      if (container) {
+        container.innerHTML = '<div class="error-message">Failed to load notifications</div>';
+      }
+    }
+  }
+  
+  updateNotificationCenter() {
+    const container = document.getElementById('messagesContainer');
+    if (!container) return;
+    
+    if (!this.notifications || this.notifications.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-bell-slash"></i>
+          <p>No notifications yet</p>
+        </div>
+      `;
+      return;
+    }
+    
+    const lastView = localStorage.getItem('lastNotificationsView');
+    let html = '';
+    
+    this.notifications.forEach(notification => {
+      const isNew = lastView ? new Date(notification.created_at) > new Date(lastView) : true;
+      const timeAgo = this.timeAgo(new Date(notification.created_at));
+      const priority = notification.priority || 'normal';
+      const priorityClass = `priority-${priority}`;
+      
+      html += `
+        <div class="notification-item ${isNew ? 'unread' : ''} ${priorityClass}" data-id="${notification.id}">
+          <div class="notification-icon">
+            <i class="fas ${this.getPriorityIcon(priority)}"></i>
+          </div>
+          <div class="notification-content">
+            <div class="notification-header">
+              <strong>${notification.title || 'System Update'}</strong>
+              <span class="notification-time">${timeAgo}</span>
+            </div>
+            <div class="notification-message">
+              ${notification.message || notification.content || ''}
+            </div>
+            ${priority === 'urgent' ? '<span class="urgent-badge">URGENT</span>' : ''}
+          </div>
+        </div>
+      `;
+    });
+    
+    container.innerHTML = html;
+    
+    // Add click handlers
+    container.querySelectorAll('.notification-item').forEach(item => {
+      item.addEventListener('click', () => this.markAsRead(item.dataset.id));
+    });
+    
+    // Update badge
+    this.updateBadge();
+  }
+  
+  getPriorityIcon(priority) {
+    switch(priority) {
+      case 'urgent': return 'fa-exclamation-circle';
+      case 'high': return 'fa-arrow-circle-up';
+      case 'low': return 'fa-arrow-circle-down';
+      default: return 'fa-bell';
+    }
+  }
+  
+  timeAgo(date) {
+    const seconds = Math.floor((new Date() - date) / 1000);
+    
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + ' years ago';
+    
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + ' months ago';
+    
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + ' days ago';
+    
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + ' hours ago';
+    
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + ' minutes ago';
+    
+    return Math.floor(seconds) + ' seconds ago';
+  }
+  
+  markAsRead(notificationId) {
+    const item = document.querySelector(`.notification-item[data-id="${notificationId}"]`);
+    if (item) {
+      item.classList.remove('unread');
+      this.unreadCount = Math.max(0, this.unreadCount - 1);
+      this.updateBadge();
+      
+      // Send to server (optional)
+      fetch(`${this.backendUrl}/api/notifications/${notificationId}/read`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device_id: localStorage.getItem('deviceId') })
+      }).catch(() => {});
+    }
+  }
+  
+  markAllAsRead() {
+    localStorage.setItem('lastNotificationsView', new Date().toISOString());
+    document.querySelectorAll('.notification-item').forEach(item => {
+      item.classList.remove('unread');
+    });
+    this.unreadCount = 0;
+    this.updateBadge();
+    
+    // Show toast
+    this.showNotificationToast('Notifications', 'All marked as read');
+  }
+  
+  async refreshNotifications() {
+    await this.loadNotifications();
+    this.showNotificationToast('Refreshed', 'Notifications updated');
+  }
+  
+  exportNotifications() {
+    if (this.notifications.length === 0) {
+      this.showNotificationToast('No notifications', 'Nothing to export');
+      return;
+    }
+    
+    const data = this.notifications.map(n => ({
+      title: n.title,
+      message: n.message || n.content,
+      priority: n.priority,
+      date: new Date(n.created_at).toLocaleString()
+    }));
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `notifications_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    this.showNotificationToast('Exported', `${data.length} notifications exported`);
+  }
+  
+  updateBadge() {
+    const badge = document.getElementById('message-count');
+    if (!badge) return;
+    
+    const unread = document.querySelectorAll('.notification-item.unread').length;
+    
+    if (unread > 0) {
+      badge.textContent = unread > 9 ? '9+' : unread;
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+  
+  openNotificationCenter() {
+    const modal = document.getElementById('messagesModal');
+    if (modal) {
+      modal.style.display = 'block';
+      document.body.style.overflow = 'hidden';
+      this.loadNotifications();
+    }
+  }
+  
+  closeNotificationCenter() {
+    const modal = document.getElementById('messagesModal');
+    if (modal) {
+      modal.style.display = 'none';
+      document.body.style.overflow = 'auto';
+    }
+  }
+}
+
+// ==================== FIREBASE MESSAGING ====================
 
 // Initialize Firebase Cloud Messaging
 async function initializeMessaging() {
@@ -64,10 +468,12 @@ async function initializeMessaging() {
     // Handle Foreground Messages
     messaging.onMessage((payload) => {
       console.log('Foreground message received:', payload);
-      showNotification(
-        payload.notification?.title || 'New Update', 
-        payload.notification?.body || 'You have a new notification'
-      );
+      if (notificationSystem) {
+        notificationSystem.showNotificationToast(
+          payload.notification?.title || 'New Update',
+          payload.notification?.body || 'You have a new notification'
+        );
+      }
     });
     
     return true;
@@ -85,20 +491,15 @@ async function requestNotificationPermission() {
     if (permission === 'granted') {
       console.log('✅ Notification permission granted');
       
-      // VAPID key from Firebase Console
       const vapidKey = 'BL2-1Ej72YPhk-TH1tExzaWd3eiUL_nzL2MMNwr8F9n1Nz3SxgOD88XOgoFIZIRTrsh1i9iXw_hsBYxEKffT7hY';
-
-if (vapidKey) {
-  try {
-    fcmToken = await messaging.getToken({ vapidKey: vapidKey });
-    console.log('✅ FCM Token received:', fcmToken);
-    await saveFCMToken(fcmToken);
-  } catch (tokenError) {
-    console.error('Error getting FCM token:', tokenError);
-  }
-} else {
-  console.warn('⚠️ VAPID key not configured.');
-}
+      
+      try {
+        fcmToken = await messaging.getToken({ vapidKey: vapidKey });
+        console.log('✅ FCM Token received:', fcmToken);
+        await saveFCMToken(fcmToken);
+      } catch (tokenError) {
+        console.error('Error getting FCM token:', tokenError);
+      }
     } else {
       console.warn('❌ Notification permission denied');
     }
@@ -118,208 +519,28 @@ async function saveFCMToken(token) {
       localStorage.setItem('deviceId', deviceId);
     }
     
-    const { error } = await supabaseClient
-      .from('push_subscriptions')
-      .upsert({
-        device_id: deviceId,
-        fcm_token: token,
-        platform: 'web',
-        user_agent: navigator.userAgent,
-        last_active: new Date().toISOString()
-      }, { onConflict: 'device_id' });
+    const backendUrl = (window.location.hostname === 'localhost')
+      ? 'http://localhost:3000'
+      : 'https://starlink-wifi-backend-v862.onrender.com';
     
-    if (error) throw error;
+    await fetch(`${backendUrl}/api/save-fcm-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: token,
+        deviceId: deviceId,
+        platform: 'web',
+        userAgent: navigator.userAgent
+      })
+    });
+    
     console.log('✅ FCM token saved to database');
   } catch (error) {
     console.error('Error saving FCM token:', error);
   }
 }
 
-// Show Notification Toast
-function showNotification(title, message) {
-  const toast = document.getElementById('notification-toast');
-  const messageElement = document.getElementById('notification-message');
-  
-  if (toast && messageElement) {
-    messageElement.innerHTML = '<strong>' + title + ':</strong> ' + message;
-    toast.classList.add('show');
-    
-    setTimeout(function() {
-      toast.classList.remove('show');
-    }, 5000);
-  }
-}
-
-function closeNotification() {
-  const toast = document.getElementById('notification-toast');
-  if (toast) {
-    toast.classList.remove('show');
-  }
-}
-
-// Initialize on DOM Ready
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('DOM loaded, initializing...');
-  
-  const supabaseInitialized = initializeSupabase();
-  
-  // Initialize messaging after delay
-  setTimeout(() => {
-    initializeMessaging();
-  }, 1000);
-  
-  // Mobile Menu Toggle
-  const mobileMenu = document.querySelector('.mobile-menu');
-  const navLinks = document.querySelector('.nav-links');
-  
-  if (mobileMenu && navLinks) {
-    mobileMenu.addEventListener('click', function() {
-      navLinks.classList.toggle('active');
-      mobileMenu.innerHTML = navLinks.classList.contains('active')
-        ? '<i class="fas fa-times"></i>'
-        : '<i class="fas fa-bars"></i>';
-    });
-  }
-
-  // Messages Button
-  const messagesBtn = document.getElementById('messages-notification');
-  if (messagesBtn) {
-    messagesBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (typeof window.openNotificationsModal === 'function') {
-        window.openNotificationsModal();
-      }
-    });
-  }
-  
-  // Smooth Scrolling
-  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function(e) {
-      const href = this.getAttribute('href');
-      if (href.startsWith('#') && href !== '#') {
-        e.preventDefault();
-        const target = document.querySelector(href);
-        if (target) {
-          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }
-    });
-  });
-
-  // Load Data
-  if (supabaseInitialized) {
-    loadBundles();
-    loadGalleryPreview();
-    loadNotifications();
-    setInterval(checkForNewNotifications, 30000);
-  } else {
-    showSupabaseError();
-  }
-  
-  setupContactForm();
-});
-
-// Show Supabase Error
-function showSupabaseError() {
-  const bundlesContainer = document.getElementById('bundles-container');
-  const previewContainer = document.getElementById('gallery-preview-container');
-  
-  const errorHtml = '<div style="grid-column: 1 / -1; text-align: center; padding: 3rem;">' +
-    '<i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>' +
-    '<h3>Connection Error</h3>' +
-    '<p>Unable to connect to server. Please refresh the page.</p>' +
-    '</div>';
-  
-  if (bundlesContainer) bundlesContainer.innerHTML = errorHtml;
-  if (previewContainer) previewContainer.innerHTML = errorHtml;
-}
-
-// Check for New Notifications
-async function checkForNewNotifications() {
-  try {
-    if (!supabaseClient) return;
-    
-    const lastChecked = localStorage.getItem('lastNotificationCheck') || new Date(0).toISOString();
-    
-    const { data, error } = await supabaseClient
-      .from('notifications')
-      .select('*')
-      .eq('sent', true)
-      .gt('created_at', lastChecked)
-      .order('created_at', { ascending: false });
-    
-    if (!error && data && data.length > 0) {
-      const latest = data[0];
-      showNotification('New Update', latest.message || latest.content);
-      updateNotificationsBadge();
-      
-      const modal = document.getElementById('messagesModal');
-      if (modal && modal.style.display === 'block') {
-        displayNotifications(data);
-      }
-      
-      localStorage.setItem('lastNotificationCheck', new Date().toISOString());
-    }
-  } catch (error) {
-    console.error('Error checking notifications:', error);
-  }
-}
-
-// Setup Contact Form
-function setupContactForm() {
-  const form = document.getElementById('contact-form');
-  if (!form) return;
-  
-  form.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const name = document.getElementById('name').value;
-    const email = document.getElementById('email').value;
-    const phone = document.getElementById('phone').value;
-    const service = document.getElementById('service').value;
-    const message = document.getElementById('message').value;
-    const formMessage = document.getElementById('form-message');
-    const submitBtn = form.querySelector('button[type="submit"]');
-    const originalText = submitBtn.innerHTML;
-    
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-    submitBtn.disabled = true;
-    
-    try {
-      // Use correct backend URL
-      const backendUrl = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-        ? 'http://localhost:3000'
-        : 'https://starlink-wifi-backend-v862.onrender.com';
-      
-      console.log('Sending to:', backendUrl);
-      
-      const response = await fetch(backendUrl + '/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, phone, service, message })
-      });
-      
-      const result = await response.json();
-      
-      if (response.ok && result.success) {
-        formMessage.innerHTML = '<p class="success">Message sent successfully! We\'ll contact you soon.</p>';
-        formMessage.style.color = 'green';
-        form.reset();
-      } else {
-        throw new Error(result.message || 'Failed to send message');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      formMessage.innerHTML = '<p class="error">Error sending message. Please call us at 0740 851 330.</p>';
-      formMessage.style.color = 'red';
-    } finally {
-      submitBtn.innerHTML = originalText;
-      submitBtn.disabled = false;
-      setTimeout(() => { formMessage.innerHTML = ''; }, 5000);
-    }
-  });
-}
+// ==================== PAGE FUNCTIONS ====================
 
 // Load Bundles
 async function loadBundles() {
@@ -384,7 +605,7 @@ function createBundleCard(bundle, key) {
   return card;
 }
 
-// Load Gallery Preview - FIXED: Removed 'url' column from select
+// Load Gallery Preview
 async function loadGalleryPreview() {
   const container = document.getElementById('gallery-preview-container');
   if (!container) return;
@@ -397,7 +618,7 @@ async function loadGalleryPreview() {
     
     const { data, error } = await supabaseClient
       .from('gallery')
-      .select('id, title, description, category, image_url, visible')  // REMOVED: url
+      .select('id, title, description, category, image_url, url, visible')
       .eq('visible', true)
       .order('created_at', { ascending: false })
       .limit(3);
@@ -423,14 +644,12 @@ async function loadGalleryPreview() {
   }
 }
 
-// Create Gallery Preview Item - FIXED with better image handling
 function createGalleryPreviewItem(item) {
   const galleryItem = document.createElement('div');
   galleryItem.className = 'gallery-preview-item';
   galleryItem.style.cssText = 'position: relative; overflow: hidden; border-radius: 8px;';
   
-  // Use only image_url (url column removed from schema)
-  const imageUrl = item.image_url;
+  const imageUrl = item.image_url || item.url;
   
   const imgWrapper = document.createElement('div');
   imgWrapper.style.cssText = 'width: 100%; height: 250px; background-color: #f3f4f6; display: flex; align-items: center; justify-content: center;';
@@ -440,7 +659,6 @@ function createGalleryPreviewItem(item) {
   img.style.cssText = 'max-width: 100%; max-height: 100%; object-fit: cover; width: 100%; height: 100%;';
   
   img.onerror = function() {
-    console.warn('Failed to load image:', imageUrl);
     this.style.display = 'none';
     const placeholder = document.createElement('div');
     placeholder.innerHTML = '<i class="fas fa-image" style="font-size: 3rem; color: #9ca3af;"></i>';
@@ -456,7 +674,6 @@ function createGalleryPreviewItem(item) {
   imgWrapper.appendChild(img);
   galleryItem.appendChild(imgWrapper);
   
-  // Overlay
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.7); color: white; padding: 1rem;';
   
@@ -475,307 +692,135 @@ function createGalleryPreviewItem(item) {
   return galleryItem;
 }
 
-// Load Full Gallery - FIXED: Removed 'url' column from select
-async function loadFullGallery() {
-  const container = document.getElementById('modalGalleryContainer');
-  if (!container) return;
+// Setup Contact Form
+function setupContactForm() {
+  const form = document.getElementById('contact-form');
+  if (!form) return;
   
-  container.innerHTML = '<div style="text-align: center; padding: 4rem;">' +
-    '<i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #3b82f6;"></i>' +
-    '<p>Loading gallery...</p></div>';
-  
-  try {
-    if (!supabaseClient) throw new Error('Supabase not initialized');
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
     
-    const { data, error } = await supabaseClient
-      .from('gallery')
-      .select('id, title, description, category, image_url, visible')  // REMOVED: url
-      .eq('visible', true)
-      .order('created_at', { ascending: false });
+    const name = document.getElementById('name').value;
+    const email = document.getElementById('email').value;
+    const phone = document.getElementById('phone').value;
+    const service = document.getElementById('service').value;
+    const message = document.getElementById('message').value;
+    const formMessage = document.getElementById('form-message');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
     
-    if (error) throw error;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    submitBtn.disabled = true;
     
-    container.innerHTML = '';
-    
-    if (!data || data.length === 0) {
-      container.innerHTML = '<div style="text-align: center; padding: 4rem;">' +
-        '<i class="fas fa-images" style="font-size: 3rem; color: #9ca3af;"></i>' +
-        '<h3>No Gallery Items Available</h3></div>';
-      return;
+    try {
+      const backendUrl = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'http://localhost:3000'
+        : 'https://starlink-wifi-backend-v862.onrender.com';
+      
+      const response = await fetch(backendUrl + '/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, phone, service, message })
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        formMessage.innerHTML = '<p class="success">Message sent successfully! We\'ll contact you soon.</p>';
+        formMessage.style.color = 'green';
+        form.reset();
+      } else {
+        throw new Error(result.message || 'Failed to send message');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      formMessage.innerHTML = '<p class="error">Error sending message. Please call us at 0740 851 330.</p>';
+      formMessage.style.color = 'red';
+    } finally {
+      submitBtn.innerHTML = originalText;
+      submitBtn.disabled = false;
+      setTimeout(() => { formMessage.innerHTML = ''; }, 5000);
     }
-    
-    data.forEach(item => container.appendChild(createModalGalleryItem(item)));
-    setupGalleryFilters();
-  } catch (error) {
-    console.error('Error loading gallery:', error);
-    container.innerHTML = '<div style="text-align: center; padding: 4rem;">' +
-      '<i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444;"></i>' +
-      '<h3>Unable to Load Gallery</h3>' +
-      '<button onclick="loadFullGallery()" class="btn btn-secondary"><i class="fas fa-redo"></i> Retry</button></div>';
-  }
+  });
 }
 
-// Create Modal Gallery Item - FIXED: Use only image_url
-function createModalGalleryItem(item) {
-  const galleryItem = document.createElement('div');
-  galleryItem.className = 'modal-gallery-item';
-  galleryItem.dataset.filter = item.category || 'all';
-  galleryItem.style.cssText = 'cursor: pointer; position: relative; overflow: hidden; border-radius: 8px;';
+// ==================== INITIALIZATION ====================
+
+// Initialize on DOM Ready
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('DOM loaded, initializing...');
   
-  // Use only image_url (url column removed from schema)
-  const imageUrl = item.image_url;
+  const supabaseInitialized = initializeSupabase();
   
-  const imgWrapper = document.createElement('div');
-  imgWrapper.style.cssText = 'width: 100%; height: 200px; background-color: #f3f4f6; display: flex; align-items: center; justify-content: center;';
+  // Initialize notification system
+  setTimeout(() => {
+    notificationSystem = new NotificationSystem();
+    window.notificationSystem = notificationSystem;
+  }, 500);
   
-  const img = document.createElement('img');
-  img.alt = item.title || 'Project Image';
-  img.loading = 'lazy';
-  img.style.cssText = 'max-width: 100%; max-height: 100%; object-fit: cover; width: 100%; height: 100%;';
+  // Initialize messaging after delay
+  setTimeout(() => {
+    initializeMessaging();
+  }, 1000);
   
-  img.onerror = function() {
-    this.style.display = 'none';
-    const placeholder = document.createElement('div');
-    placeholder.innerHTML = '<i class="fas fa-image" style="font-size: 3rem; color: #9ca3af;"></i>';
-    imgWrapper.appendChild(placeholder);
-  };
+  // Mobile Menu Toggle
+  const mobileMenu = document.querySelector('.mobile-menu');
+  const navLinks = document.querySelector('.nav-links');
   
-  if (imageUrl) {
-    img.src = imageUrl;
-  } else {
-    img.onerror();
+  if (mobileMenu && navLinks) {
+    mobileMenu.addEventListener('click', function() {
+      navLinks.classList.toggle('active');
+      mobileMenu.innerHTML = navLinks.classList.contains('active')
+        ? '<i class="fas fa-times"></i>'
+        : '<i class="fas fa-bars"></i>';
+    });
+  }
+
+  // Messages Button
+  const messagesBtn = document.getElementById('messages-notification');
+  if (messagesBtn) {
+    messagesBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (notificationSystem) {
+        notificationSystem.openNotificationCenter();
+      }
+    });
   }
   
-  imgWrapper.appendChild(img);
-  galleryItem.appendChild(imgWrapper);
-  
-  galleryItem.addEventListener('click', () => showFullImage(imageUrl, item.title || 'Project Image'));
-  
-  return galleryItem;
-}
-
-function showFullImage(imageUrl, title) {
-  if (!imageUrl) return;
-  
-  let modal = document.getElementById('fullImageModal');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'fullImageModal';
-    modal.style.cssText = 'display: none; position: fixed; z-index: 3000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); align-items: center; justify-content: center;';
-    modal.innerHTML = '<div style="position: relative; max-width: 90%; max-height: 90%;">' +
-      '<button id="fullImageClose" style="position: absolute; top: -40px; right: 0; background: none; border: none; color: white; font-size: 2rem; cursor: pointer;"><i class="fas fa-times"></i></button>' +
-      '<img id="fullImage" src="" alt="" style="max-width: 100%; max-height: 80vh; object-fit: contain; border-radius: 8px;">' +
-      '</div>';
-    document.body.appendChild(modal);
-    
-    document.getElementById('fullImageClose').addEventListener('click', closeFullImage);
-    modal.addEventListener('click', (e) => { if (e.target === modal) closeFullImage(); });
-  }
-  
-  const img = document.getElementById('fullImage');
-  img.src = imageUrl;
-  img.alt = title;
-  img.onerror = function() {
-    this.src = 'https://via.placeholder.com/800x600?text=Image+Not+Available';
-  };
-  
-  modal.style.display = 'flex';
-  document.body.style.overflow = 'hidden';
-}
-
-function closeFullImage() {
-  const modal = document.getElementById('fullImageModal');
-  if (modal) {
-    modal.style.display = 'none';
-    document.body.style.overflow = 'auto';
-  }
-}
-
-function setupGalleryFilters() {
-  const buttons = document.querySelectorAll('.filter-btn');
-  buttons.forEach(button => {
-    button.addEventListener('click', (e) => {
-      const filter = e.target.dataset.filter;
-      buttons.forEach(b => b.classList.remove('active'));
-      e.target.classList.add('active');
-      filterGalleryItems(filter);
+  // Smooth Scrolling
+  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function(e) {
+      const href = this.getAttribute('href');
+      if (href.startsWith('#') && href !== '#') {
+        e.preventDefault();
+        const target = document.querySelector(href);
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
     });
   });
-}
 
-function filterGalleryItems(filter) {
-  const items = document.querySelectorAll('.modal-gallery-item');
-  items.forEach(item => {
-    const itemFilter = item.dataset.filter || 'all';
-    if (filter === 'all' || itemFilter === filter) {
-      item.style.display = 'block';
-      setTimeout(() => item.style.opacity = '1', 100);
-    } else {
-      item.style.opacity = '0';
-      setTimeout(() => item.style.display = 'none', 300);
+  // Load Data
+  if (supabaseInitialized) {
+    loadBundles();
+    loadGalleryPreview();
+  }
+  
+  setupContactForm();
+  
+  // Setup modal close on outside click
+  window.addEventListener('click', (e) => {
+    const modal = document.getElementById('messagesModal');
+    if (e.target === modal && notificationSystem) {
+      notificationSystem.closeNotificationCenter();
     }
   });
-}
+});
 
-// Notifications Functions
-async function loadNotifications() {
-  const container = document.getElementById('messagesContainer');
-  if (!container) return;
-  
-  container.innerHTML = '<div style="text-align: center; padding: 2rem;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
-  
-  try {
-    if (!supabaseClient) throw new Error('Supabase not initialized');
-    
-    const { data, error } = await supabaseClient
-      .from('notifications')
-      .select('*')
-      .eq('sent', true)
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    
-    window.notifications = data || [];
-    displayNotifications(window.notifications);
-    updateNotificationsBadge();
-  } catch (error) {
-    console.error('Error loading notifications:', error);
-    container.innerHTML = '<div style="text-align: center; padding: 2rem;">' +
-      '<i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>' +
-      '<h3>Error Loading Notifications</h3></div>';
-  }
-}
+// ==================== UTILITY FUNCTIONS ====================
 
-function displayNotifications(list) {
-  const container = document.getElementById('messagesContainer');
-  if (!container) return;
-  
-  if (!list || list.length === 0) {
-    container.innerHTML = '<div style="text-align: center; padding: 3rem;">' +
-      '<i class="fas fa-bell-slash" style="font-size: 3rem; color: #ccc;"></i>' +
-      '<p>No notifications yet</p></div>';
-    return;
-  }
-  
-  const lastView = localStorage.getItem('lastNotificationsView');
-  let html = '';
-  
-  list.forEach(notification => {
-    const time = new Date(notification.created_at).toLocaleString();
-    const isNew = lastView ? new Date(notification.created_at) > new Date(lastView) : true;
-    
-    html += '<div class="message-item' + (isNew ? ' unread' : '') + '" data-id="' + notification.id + '" onclick="markNotificationAsRead(\'' + notification.id + '\')">' +
-      '<div class="message-header">' +
-      '<div class="message-sender"><i class="fas fa-bullhorn" style="color: #3b82f6; margin-right: 0.5rem;"></i>Admin Update</div>' +
-      '<div class="message-time">' + time + '</div></div>';
-    
-    if (notification.title) {
-      html += '<div style="font-weight: bold; margin: 0.5rem 0; color: #333;">' + notification.title + '</div>';
-    }
-    
-    html += '<div class="message-content">' + (notification.message || notification.content || '') + '</div></div>';
-  });
-  
-  container.innerHTML = html;
-}
-
-function markNotificationAsRead(id) {
-  const item = document.querySelector('.message-item[data-id="' + id + '"]');
-  if (item) item.classList.remove('unread');
-  updateNotificationsBadge();
-}
-
-async function markAllNotificationsAsRead() {
-  localStorage.setItem('lastNotificationsView', new Date().toISOString());
-  document.querySelectorAll('.message-item').forEach(item => item.classList.remove('unread'));
-  updateNotificationsBadge();
-  showNotification('All notifications marked as read', 'success');
-}
-
-async function updateNotificationsBadge() {
-  try {
-    if (!supabaseClient) return;
-    
-    const lastView = localStorage.getItem('lastNotificationsView');
-    let query = supabaseClient.from('notifications').select('*', { count: 'exact', head: true }).eq('sent', true);
-    if (lastView) query = query.gt('created_at', lastView);
-    
-    const { count, error } = await query;
-    if (error) throw error;
-    
-    const badge = document.getElementById('message-count');
-    if (!badge) return;
-    
-    if (count > 0) {
-      badge.textContent = count > 9 ? '9+' : count;
-      badge.style.display = 'flex';
-    } else {
-      badge.style.display = 'none';
-    }
-  } catch (error) {
-    console.error('Error updating badge:', error);
-  }
-}
-
-function openNotificationsModal() {
-  const modal = document.getElementById('messagesModal');
-  const title = document.getElementById('messagesModalTitle');
-  
-  if (modal) {
-    if (title) title.innerHTML = '<i class="fas fa-bell"></i> Notifications & Updates';
-    modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
-    loadNotifications();
-  }
-}
-
-function closeMessagesModal() {
-  const modal = document.getElementById('messagesModal');
-  if (modal) {
-    modal.style.display = 'none';
-    document.body.style.overflow = 'auto';
-    updateNotificationsBadge();
-  }
-}
-
-function refreshNotifications() {
-  loadNotifications();
-  showNotification('Refreshed', 'Notifications updated');
-}
-
-function exportNotifications() {
-  const notifications = window.notifications || [];
-  if (notifications.length === 0) {
-    showNotification('No notifications to export', 'warning');
-    return;
-  }
-  
-  const headers = ['Title', 'Message', 'Date'];
-  const rows = [headers.join(',')];
-  
-  notifications.forEach(n => {
-    rows.push([
-      '"' + (n.title || '') + '"',
-      '"' + (n.message || n.content || '') + '"',
-      '"' + new Date(n.created_at).toLocaleString() + '"'
-    ].join(','));
-  });
-  
-  const csvContent = rows.join('\n');
-  const blob = new Blob([csvContent], { type: 'text/csv' });
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'notifications_' + new Date().toISOString().split('T')[0] + '.csv';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  window.URL.revokeObjectURL(url);
-  
-  showNotification('Notifications exported successfully', 'success');
-}
-
-// Utility Functions
 function selectBundle(bundleId) {
   alert('Thank you for selecting bundle ' + bundleId + '! Our sales team will contact you shortly.');
   openWhatsApp();
@@ -847,23 +892,17 @@ window.closeGalleryModal = closeGalleryModal;
 window.selectBundle = selectBundle;
 window.loadBundles = loadBundles;
 window.loadGalleryPreview = loadGalleryPreview;
-window.loadFullGallery = loadFullGallery;
 window.openWhatsApp = openWhatsApp;
-window.showNotification = showNotification;
-window.closeNotification = closeNotification;
-window.openNotificationsModal = openNotificationsModal;
-window.closeMessagesModal = closeMessagesModal;
-window.markAllNotificationsAsRead = markAllNotificationsAsRead;
-window.refreshNotifications = refreshNotifications;
-window.exportNotifications = exportNotifications;
 window.callNow = callNow;
 window.sendEmail = sendEmail;
 window.openLocation = openLocation;
 window.openFacebook = openFacebook;
 window.openTwitter = openTwitter;
 window.openInstagram = openInstagram;
-window.markNotificationAsRead = markNotificationAsRead;
-window.updateNotificationsBadge = updateNotificationsBadge;
+window.openNotificationsModal = () => notificationSystem?.openNotificationCenter();
+window.closeMessagesModal = () => notificationSystem?.closeNotificationCenter();
+window.markAllNotificationsAsRead = () => notificationSystem?.markAllAsRead();
+window.refreshNotifications = () => notificationSystem?.refreshNotifications();
+window.exportNotifications = () => notificationSystem?.exportNotifications();
 
 console.log('✅ Main script initialized');
-
