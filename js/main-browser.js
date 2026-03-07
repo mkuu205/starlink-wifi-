@@ -1,8 +1,6 @@
 // main-browser.js - Complete Main Website Script with Notification System
 // Email: support@starlinktokenwifi.com (forwards to billnjehia18@gmail.com)
 
-console.log('🚀 Starlink Token WiFi - Main Script Loading...');
-
 // Supabase Configuration
 const SUPABASE_URL = 'https://jgaeldguwezbgglwaivz.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpnYWVsZGd1d2V6YmdnbHdhaXZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1Nzg1NTAsImV4cCI6MjA4NjE1NDU1MH0.pAkRxRs1gvmrJJR_CNietYes6ju6qOMP8Etnpr3TtyQ';
@@ -20,14 +18,12 @@ function initializeSupabase() {
   if (window.supabase && window.supabase.createClient) {
     try {
       supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      console.log('✅ Supabase client initialized');
       return true;
     } catch (error) {
-      console.error('❌ Failed to initialize Supabase:', error);
+      console.error('Failed to initialize Supabase:', error);
       return false;
     }
   }
-  console.warn('⚠️ Supabase library not loaded');
   return false;
 }
 
@@ -48,16 +44,13 @@ class NotificationSystem {
   }
   
   init() {
-    console.log('🔔 Initializing notification system...');
     this.setupNotificationCenter();
     this.startPolling();
     this.setupToast();
-    // Load initial notifications
     this.loadNotifications();
   }
   
   setupToast() {
-    // Create toast if it doesn't exist
     if (!document.getElementById('notification-toast')) {
       const toast = document.createElement('div');
       toast.id = 'notification-toast';
@@ -79,16 +72,12 @@ class NotificationSystem {
   }
   
   startPolling() {
-    console.log('🔔 Starting notification polling every 30 seconds...');
     this.checkForNewNotifications();
     setInterval(() => this.checkForNewNotifications(), this.pollInterval);
   }
   
   async checkForNewNotifications() {
     try {
-      console.log('Checking for new notifications since:', this.lastCheck);
-      
-      // FIXED: Use backend API endpoint instead of direct Supabase query
       const response = await fetch(
         `${this.backendUrl}/api/notifications?since=${encodeURIComponent(this.lastCheck)}`
       );
@@ -100,13 +89,9 @@ class NotificationSystem {
       const result = await response.json();
       const data = result.notifications || [];
       
-      console.log(`📬 Received ${data.length} new notifications`);
-      
       if (data && data.length > 0) {
-        // Add to notifications array
         this.notifications = [...data, ...this.notifications];
         
-        // Show toast for each new notification (limit to avoid spam)
         data.slice(0, 3).forEach(notification => {
           this.showNotificationToast(
             notification.title || 'New Update',
@@ -114,27 +99,20 @@ class NotificationSystem {
           );
         });
         
-        // Update the notification center
         this.updateNotificationCenter();
-        
-        // FIXED: Update lastCheck with the most recent notification timestamp
         this.lastCheck = data[0].created_at;
         
-        // Play sound for urgent notifications
         if (data.some(n => n.priority === 'urgent')) {
           this.playNotificationSound();
         }
       } else {
-        // FIXED: If no new notifications, still update lastCheck to current time
         this.lastCheck = new Date().toISOString();
       }
       
-      // Save last check time
       localStorage.setItem('lastNotificationCheck', this.lastCheck);
       
     } catch (error) {
       console.error('Error checking notifications:', error);
-      // FIXED: Don't skip future checks - update to current time even on error
       this.lastCheck = new Date().toISOString();
       localStorage.setItem('lastNotificationCheck', this.lastCheck);
     }
@@ -150,7 +128,6 @@ class NotificationSystem {
       messageElement.textContent = message;
       toast.classList.add('show');
       
-      // Auto hide after 8 seconds
       setTimeout(() => {
         toast.classList.remove('show');
       }, 8000);
@@ -159,35 +136,28 @@ class NotificationSystem {
   
   playNotificationSound() {
     // Optional: Play sound for urgent notifications
-    // const audio = new Audio('/notification.mp3');
-    // audio.play().catch(e => console.log('Audio play failed:', e));
   }
   
   setupNotificationCenter() {
-    // Check if modal exists, if not create it
     if (!document.getElementById('messagesModal')) {
       this.createNotificationModal();
     }
     
-    // Setup close button
     const closeBtn = document.querySelector('#messagesModal .close');
     if (closeBtn) {
       closeBtn.addEventListener('click', () => this.closeNotificationCenter());
     }
     
-    // Setup mark all read button
     const markAllBtn = document.getElementById('mark-all-read');
     if (markAllBtn) {
       markAllBtn.addEventListener('click', () => this.markAllAsRead());
     }
     
-    // Setup refresh button
     const refreshBtn = document.getElementById('refresh-notifications');
     if (refreshBtn) {
       refreshBtn.addEventListener('click', () => this.refreshNotifications());
     }
     
-    // Setup export button
     const exportBtn = document.getElementById('export-notifications');
     if (exportBtn) {
       exportBtn.addEventListener('click', () => this.exportNotifications());
@@ -241,7 +211,6 @@ class NotificationSystem {
       
       container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Loading notifications...</div>';
       
-      // FIXED: Use backend API endpoint
       const response = await fetch(`${this.backendUrl}/api/notifications?limit=50`);
       
       if (!response.ok) {
@@ -302,8 +271,6 @@ class NotificationSystem {
     });
     
     container.innerHTML = html;
-    
-    // Update badge
     this.updateBadge();
   }
   
@@ -340,8 +307,6 @@ class NotificationSystem {
   markAllAsRead() {
     localStorage.setItem('lastNotificationsView', new Date().toISOString());
     this.updateBadge();
-    
-    // Show toast
     this.showNotificationToast('Notifications', 'All marked as read');
   }
   
@@ -374,12 +339,10 @@ class NotificationSystem {
     this.showNotificationToast('Exported', `${data.length} notifications exported`);
   }
   
-  // FIXED: Improved badge logic
   updateBadge() {
     const badge = document.getElementById('message-count');
     if (!badge) return;
     
-    // FIXED: Calculate unread based on last view timestamp
     const lastView = localStorage.getItem('lastNotificationsView');
     const unread = this.notifications.filter(n => {
       return !lastView || new Date(n.created_at) > new Date(lastView);
@@ -416,21 +379,16 @@ class NotificationSystem {
 // Initialize Firebase Cloud Messaging
 async function initializeMessaging() {
   if (typeof firebase === 'undefined') {
-    console.warn('Firebase not loaded');
     return false;
   }
   
   if (!('serviceWorker' in navigator)) {
-    console.warn('Service workers not supported');
     return false;
   }
   
   try {
-    // Register Service Worker
     const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-    console.log('✅ Service Worker registered');
     
-    // Initialize Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyAtt28zOdzpr_CraaSFHzvIOcwggqMYuvE",
       authDomain: "starlink-token-wifi.firebaseapp.com",
@@ -443,12 +401,9 @@ async function initializeMessaging() {
     firebase.initializeApp(firebaseConfig);
     messaging = firebase.messaging();
     
-    // Request Permission and Get Token
     await requestNotificationPermission();
     
-    // Handle Foreground Messages
     messaging.onMessage((payload) => {
-      console.log('Foreground message received:', payload);
       if (notificationSystem) {
         notificationSystem.showNotificationToast(
           payload.notification?.title || 'New Update',
@@ -459,7 +414,7 @@ async function initializeMessaging() {
     
     return true;
   } catch (error) {
-    console.error('❌ Error initializing messaging:', error);
+    console.error('Error initializing messaging:', error);
     return false;
   }
 }
@@ -470,19 +425,14 @@ async function requestNotificationPermission() {
     const permission = await Notification.requestPermission();
     
     if (permission === 'granted') {
-      console.log('✅ Notification permission granted');
-      
       const vapidKey = 'BL2-1Ej72YPhk-TH1tExzaWd3eiUL_nzL2MMNwr8F9n1Nz3SxgOD88XOgoFIZIRTrsh1i9iXw_hsBYxEKffT7hY';
       
       try {
         fcmToken = await messaging.getToken({ vapidKey: vapidKey });
-        console.log('✅ FCM Token received:', fcmToken);
         await saveFCMToken(fcmToken);
       } catch (tokenError) {
         console.error('Error getting FCM token:', tokenError);
       }
-    } else {
-      console.warn('❌ Notification permission denied');
     }
   } catch (error) {
     console.error('Error requesting permission:', error);
@@ -515,7 +465,6 @@ async function saveFCMToken(token) {
       })
     });
     
-    console.log('✅ FCM token saved to database');
   } catch (error) {
     console.error('Error saving FCM token:', error);
   }
@@ -602,7 +551,7 @@ async function loadGalleryPreview() {
       .select('id, title, description, category, image_url, visible')
       .eq('visible', true)
       .order('created_at', { ascending: false })
-      .limit(3);
+      .limit(6);
     
     if (error) throw error;
     
@@ -642,11 +591,15 @@ function createGalleryPreviewItem(item) {
   img.onerror = function() {
     this.style.display = 'none';
     const placeholder = document.createElement('div');
-    placeholder.innerHTML = '<i class="fas fa-image" style="font-size: 3rem; color: #9ca3af;"></i>';
+    placeholder.style.cssText = 'display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%;';
+    placeholder.innerHTML = `
+      <i class="fas fa-wifi" style="font-size: 3rem; color: #3b82f6; margin-bottom: 10px;"></i>
+      <span style="color: #6b7280; font-size: 0.9rem;">${item.title || 'Installation'}</span>
+    `;
     imgWrapper.appendChild(placeholder);
   };
   
-  if (imageUrl) {
+  if (imageUrl && imageUrl.trim() !== '') {
     img.src = imageUrl;
   } else {
     img.onerror();
@@ -671,6 +624,53 @@ function createGalleryPreviewItem(item) {
   galleryItem.appendChild(overlay);
   
   return galleryItem;
+}
+
+// Load Full Gallery with Categories
+async function loadFullGallery(category = 'all') {
+  const container = document.getElementById('full-gallery-container');
+  if (!container) return;
+  
+  container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Loading gallery...</div>';
+  
+  try {
+    if (!supabaseClient) throw new Error('Supabase not initialized');
+    
+    let query = supabaseClient
+      .from('gallery')
+      .select('*')
+      .eq('visible', true)
+      .order('created_at', { ascending: false });
+    
+    if (category !== 'all') {
+      query = query.eq('category', category);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    
+    container.innerHTML = '';
+    
+    if (!data || data.length === 0) {
+      container.innerHTML = '<div style="text-align: center; padding: 3rem; grid-column: 1 / -1;">' +
+        '<i class="fas fa-images" style="font-size: 3rem; color: #9ca3af;"></i>' +
+        '<h3>No Gallery Items Found</h3></div>';
+      return;
+    }
+    
+    data.forEach(item => {
+      const galleryItem = createGalleryPreviewItem(item);
+      galleryItem.classList.add('modal-gallery-item');
+      container.appendChild(galleryItem);
+    });
+  } catch (error) {
+    console.error('Error loading full gallery:', error);
+    container.innerHTML = '<div style="text-align: center; padding: 3rem; grid-column: 1 / -1;">' +
+      '<i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444;"></i>' +
+      '<h3>Unable to Load Gallery</h3>' +
+      '<button onclick="loadFullGallery()" class="btn btn-secondary"><i class="fas fa-redo"></i> Retry</button></div>';
+  }
 }
 
 // Setup Contact Form
@@ -725,26 +725,36 @@ function setupContactForm() {
   });
 }
 
+// Setup Gallery Filters
+function setupGalleryFilters() {
+  const filterButtons = document.querySelectorAll('.gallery-filter');
+  if (!filterButtons.length) return;
+  
+  filterButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      filterButtons.forEach(btn => btn.classList.remove('active'));
+      this.classList.add('active');
+      const category = this.getAttribute('data-category') || 'all';
+      loadFullGallery(category);
+    });
+  });
+}
+
 // ==================== INITIALIZATION ====================
 
 // Initialize on DOM Ready
 document.addEventListener('DOMContentLoaded', function() {
-  console.log('DOM loaded, initializing...');
-  
   const supabaseInitialized = initializeSupabase();
   
-  // FIXED: Initialize notification system immediately if Supabase is ready
   if (supabaseInitialized) {
     notificationSystem = new NotificationSystem();
     window.notificationSystem = notificationSystem;
   }
   
-  // Initialize messaging after delay
   setTimeout(() => {
     initializeMessaging();
   }, 1000);
   
-  // Mobile Menu Toggle
   const mobileMenu = document.querySelector('.mobile-menu');
   const navLinks = document.querySelector('.nav-links');
   
@@ -757,7 +767,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Messages Button
   const messagesBtn = document.getElementById('messages-notification');
   if (messagesBtn) {
     messagesBtn.addEventListener('click', function(e) {
@@ -769,7 +778,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
-  // Smooth Scrolling
   document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     anchor.addEventListener('click', function(e) {
       const href = this.getAttribute('href');
@@ -783,24 +791,48 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // Load Data
   if (supabaseInitialized) {
     loadBundles();
     loadGalleryPreview();
+    loadFullGallery();
   }
   
   setupContactForm();
+  setupGalleryFilters();
   
-  // Setup modal close on outside click
   window.addEventListener('click', (e) => {
     const modal = document.getElementById('messagesModal');
     if (e.target === modal && notificationSystem) {
       notificationSystem.closeNotificationCenter();
     }
   });
+  
+  const galleryModal = document.getElementById('galleryModal');
+  if (galleryModal) {
+    galleryModal.addEventListener('click', (e) => {
+      if (e.target === galleryModal) {
+        closeGalleryModal();
+      }
+    });
+  }
 });
 
 // ==================== UTILITY FUNCTIONS ====================
+
+function openGalleryModal() {
+  const modal = document.getElementById('galleryModal');
+  if (!modal) return;
+  modal.style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeGalleryModal() {
+  const modal = document.getElementById('galleryModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+  }
+}
 
 function selectBundle(bundleId) {
   alert('Thank you for selecting bundle ' + bundleId + '! Our sales team will contact you shortly.');
@@ -826,23 +858,6 @@ function hideBundles() {
   const home = document.getElementById('home');
   if (section) section.style.display = 'none';
   if (home) home.scrollIntoView({ behavior: 'smooth' });
-}
-
-function openGalleryModal() {
-  const modal = document.getElementById('galleryModal');
-  if (!modal) return;
-  modal.style.display = 'block';
-  document.body.style.overflow = 'hidden';
-  if (!document.querySelector('.modal-gallery-item')) {
-  }
-}
-
-function closeGalleryModal() {
-  const modal = document.getElementById('galleryModal');
-  if (modal) {
-    modal.style.display = 'none';
-    document.body.style.overflow = 'auto';
-  }
 }
 
 function callNow() {
@@ -874,6 +889,7 @@ window.closeGalleryModal = closeGalleryModal;
 window.selectBundle = selectBundle;
 window.loadBundles = loadBundles;
 window.loadGalleryPreview = loadGalleryPreview;
+window.loadFullGallery = loadFullGallery;
 window.openWhatsApp = openWhatsApp;
 window.callNow = callNow;
 window.sendEmail = sendEmail;
@@ -886,9 +902,3 @@ window.closeMessagesModal = () => notificationSystem?.closeNotificationCenter();
 window.markAllNotificationsAsRead = () => notificationSystem?.markAllAsRead();
 window.refreshNotifications = () => notificationSystem?.refreshNotifications();
 window.exportNotifications = () => notificationSystem?.exportNotifications();
-
-console.log('✅ Main script initialized');
-
-
-
-
