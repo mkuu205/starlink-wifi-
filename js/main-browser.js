@@ -87,9 +87,9 @@ async function requestNotificationPermission() {
       
       // ⚠️ IMPORTANT: Replace with your actual VAPID key from Firebase Console
       // Get it from: Firebase Console > Project Settings > Cloud Messaging > Web Push Certificates
-      const vapidKey = 'YOUR_VAPID_KEY_HERE'; // <-- REPLACE THIS WITH YOUR ACTUAL KEY
+      const vapidKey = 'BL2-1Ej72YPhk-TH1tExzaWd3eiUL_nzL2MMNwr8F9n1Nz3SxgOD88XOgoFIZIRTrsh1i9iXw_hsBYxEKffT7hY'; // <-- REPLACE THIS WITH YOUR ACTUAL KEY
       
-      if (vapidKey && vapidKey !== 'YOUR_VAPID_KEY_HERE') {
+      if (vapidKey && vapidKey !== 'BL2-1Ej72YPhk-TH1tExzaWd3eiUL_nzL2MMNwr8F9n1Nz3SxgOD88XOgoFIZIRTrsh1i9iXw_hsBYxEKffT7hY') {
         try {
           fcmToken = await messaging.getToken({ vapidKey: vapidKey });
           console.log('✅ FCM Token received:', fcmToken);
@@ -865,3 +865,4 @@ window.markNotificationAsRead = markNotificationAsRead;
 window.updateNotificationsBadge = updateNotificationsBadge;
 
 console.log('✅ Main script initialized');
+
