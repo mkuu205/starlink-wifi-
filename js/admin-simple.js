@@ -38,7 +38,7 @@ const simpleDatabase = {
   }
 };
 
-// Send Push Notification via Backend - USING ONLY THIS ENDPOINT
+// Send Push Notification via Backend
 async function sendPushNotification(title, message, priority = 'normal') {
   try {
     console.log('📨 Sending push notification:', { title, message, priority });
@@ -52,7 +52,7 @@ async function sendPushNotification(title, message, priority = 'normal') {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         title: title,
-        body: message,
+        message: message,  // FIXED: Changed from 'body' to 'message' to match backend
         priority: priority,
         topic: 'all_users'
       })
@@ -69,7 +69,6 @@ async function sendPushNotification(title, message, priority = 'normal') {
     
   } catch (error) {
     console.error('❌ Error sending push notification:', error);
-    // NO FALLBACK - just return error
     return { 
       success: false, 
       error: error.message
@@ -154,7 +153,7 @@ class SimpleAdminPanel {
       updateBundleBtn.addEventListener('click', () => this.updateBundle());
     }
     
-    // Push Update - USING THE PUSH NOTIFICATION ENDPOINT
+    // Push Update
     const pushUpdateBtn = document.getElementById('push-update');
     if (pushUpdateBtn) {
       pushUpdateBtn.addEventListener('click', () => this.pushUpdate());
@@ -409,7 +408,7 @@ class SimpleAdminPanel {
     }
   }
   
-  // Push update with notification - USING ONLY /api/send-push-notification
+  // Push update with notification - FIXED field name from 'body' to 'message'
   async pushUpdate(isTest = false) {
     const updateTitle = document.getElementById('update-title');
     const updateContent = document.getElementById('update-content');
@@ -434,8 +433,9 @@ class SimpleAdminPanel {
     
     try {
       console.log('📤 Sending push notification to:', `${this.backendUrl}/api/send-push-notification`);
+      console.log('Payload:', { title, message: content, priority }); // Debug log
       
-      // Send to backend API - USING THE SPECIFIED ENDPOINT
+      // Send to backend API - USING CORRECT FIELD NAME 'message'
       const response = await fetch(`${this.backendUrl}/api/send-push-notification`, {
         method: 'POST',
         headers: { 
@@ -443,9 +443,8 @@ class SimpleAdminPanel {
         },
         body: JSON.stringify({
           title: title,
-          body: content,
-          priority: priority,
-          topic: 'all_users'
+          message: content,  // FIXED: Changed from 'body' to 'message' to match backend
+          priority: priority
         })
       });
       
@@ -462,6 +461,9 @@ class SimpleAdminPanel {
       let message = isTest ? '✅ Test notification sent!' : '✅ Update sent successfully!';
       if (result.sent !== undefined) {
         message += ` Delivered to ${result.sent} devices.`;
+      }
+      if (result.failed !== undefined && result.failed > 0) {
+        message += ` Failed: ${result.failed}.`;
       }
       
       this.showMessage(message, 'success');
@@ -647,7 +649,7 @@ class SimpleAdminPanel {
       }
       
       if (totalUpdates) {
-        totalUpdates.textContent = '0'; // No local storage for updates now
+        totalUpdates.textContent = '0';
       }
       
       if (todayActivity) {
