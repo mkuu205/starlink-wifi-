@@ -1,4 +1,4 @@
-// admin-simple.js - Admin Panel with Push Notifications
+// admin-simple.js - Complete Admin Panel with Push Notifications
 // Email notifications go to: billnjehia18@gmail.com
 
 console.log('✅ Admin panel loading...');
@@ -93,6 +93,9 @@ async function sendPushNotification(title, message, priority = 'normal') {
 // Admin Panel Class
 class SimpleAdminPanel {
   constructor() {
+    this.backendUrl = (window.location.hostname === 'localhost')
+      ? 'http://localhost:3000'
+      : 'https://starlink-wifi-backend-v862.onrender.com';
     this.init();
   }
   
@@ -111,8 +114,21 @@ class SimpleAdminPanel {
     this.loadAdminGallery();
     this.loadMessages();
     this.loadBundlesForEdit();
+    this.checkServerHealth();
     
     console.log('✅ Admin panel initialized');
+  }
+  
+  async checkServerHealth() {
+    try {
+      const response = await fetch(`${this.backendUrl}/api/health`);
+      const data = await response.json();
+      if (data.success) {
+        this.showMessage('✅ Connected to server', 'success');
+      }
+    } catch (error) {
+      this.showMessage('⚠️ Server connection failed - using local storage', 'warning');
+    }
   }
   
   setupTabNavigation() {
@@ -139,6 +155,12 @@ class SimpleAdminPanel {
       uploadBtn.addEventListener('click', () => this.uploadImage());
     }
     
+    // Clear Upload Form
+    const clearBtn = document.getElementById('clear-upload-form');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => this.clearUploadForm());
+    }
+    
     // Update Bundle
     const updateBundleBtn = document.getElementById('update-bundle');
     if (updateBundleBtn) {
@@ -151,10 +173,40 @@ class SimpleAdminPanel {
       pushUpdateBtn.addEventListener('click', () => this.pushUpdate());
     }
     
+    // Clear Update Form
+    const clearUpdateBtn = document.getElementById('clear-update-form');
+    if (clearUpdateBtn) {
+      clearUpdateBtn.addEventListener('click', () => this.clearUpdateForm());
+    }
+    
     // Logout
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => this.logout());
+    }
+    
+    // Test Notification
+    const testBtn = document.getElementById('test-notification');
+    if (testBtn) {
+      testBtn.addEventListener('click', () => this.testNotification());
+    }
+    
+    // Clear Cache
+    const clearCacheBtn = document.getElementById('clear-cache');
+    if (clearCacheBtn) {
+      clearCacheBtn.addEventListener('click', () => this.clearCache());
+    }
+    
+    // Export Data
+    const exportBtn = document.getElementById('export-data');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', () => this.exportData());
+    }
+    
+    // View Emails
+    const viewEmailsBtn = document.getElementById('view-emails');
+    if (viewEmailsBtn) {
+      viewEmailsBtn.addEventListener('click', () => this.viewEmails());
     }
     
     // Delegated Events
@@ -184,6 +236,49 @@ class SimpleAdminPanel {
     localStorage.removeItem('adminAuthenticated');
     localStorage.removeItem('adminEmail');
     window.location.href = 'admin-login.html';
+  }
+  
+  async testNotification() {
+    await this.pushUpdate(true);
+  }
+  
+  clearCache() {
+    if (confirm('Clear all cached data? This will not affect server data.')) {
+      localStorage.removeItem('site_updates');
+      localStorage.removeItem('pending_notifications');
+      this.showMessage('Cache cleared successfully');
+    }
+  }
+  
+  exportData() {
+    const data = {
+      gallery: simpleDatabase.getImages().images,
+      messages: simpleDatabase.getMessages().messages,
+      bundles: simpleDatabase.getBundles().bundles,
+      updates: JSON.parse(localStorage.getItem('site_updates') || '[]'),
+      exportDate: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `admin_export_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    this.showMessage('Data exported successfully');
+  }
+  
+  viewEmails() {
+    const emails = JSON.parse(localStorage.getItem('sent_emails') || '[]');
+    if (emails.length === 0) {
+      this.showMessage('No emails sent yet', 'info');
+      return;
+    }
+    
+    console.log('Sent emails:', emails);
+    alert(`View ${emails.length} emails in console (F12)`);
   }
   
   async uploadImage() {
@@ -259,6 +354,7 @@ class SimpleAdminPanel {
         progressDiv.innerHTML = '';
         this.clearUploadForm();
         this.loadAdminGallery();
+        this.loadStats();
       }, 500);
     };
     
@@ -284,6 +380,7 @@ class SimpleAdminPanel {
       localStorage.setItem('gallery', JSON.stringify(gallery));
       this.showMessage('Image deleted successfully!');
       this.loadAdminGallery();
+      this.loadStats();
     } catch (error) {
       console.error('Delete error:', error);
       this.showMessage('Error deleting image', 'error');
@@ -336,53 +433,111 @@ class SimpleAdminPanel {
     }
   }
   
-  // FIXED: Push update with notification
-  async pushUpdate() {
+  // Push update with notification - FIXED
+  async pushUpdate(isTest = false) {
     const updateTitle = document.getElementById('update-title');
     const updateContent = document.getElementById('update-content');
     const updatePriority = document.getElementById('update-priority');
     
     if (!updateContent) return;
     
-    const title = updateTitle ? updateTitle.value : 'Site Update';
-    const content = updateContent.value;
+    let title = isTest ? '🔔 Test Notification' : (updateTitle ? updateTitle.value : 'Site Update');
+    const content = isTest ? 'This is a test notification from the admin panel.' : updateContent.value;
     const priority = updatePriority ? updatePriority.value : 'normal';
     
-    if (!content) {
+    if (!isTest && !content) {
       this.showMessage('Please enter update content', 'error');
       return;
     }
     
-    const updateData = {
-      id: `update_${Date.now()}`,
-      title: title,
-      content: content,
-      timestamp: Date.now(),
-      type: 'site_update',
-      priority: priority
-    };
+    // Show sending indicator
+    const sendBtn = document.getElementById('push-update');
+    const originalText = sendBtn.innerHTML;
+    sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    sendBtn.disabled = true;
     
     try {
-      // Save to localStorage
+      console.log('📤 Sending update to:', this.backendUrl);
+      
+      // Send to backend API
+      const response = await fetch(`${this.backendUrl}/api/send-site-update`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: title,
+          message: content,
+          priority: priority
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      console.log('✅ Update sent:', result);
+      
+      // Show success message with details
+      let message = isTest ? '✅ Test notification sent!' : '✅ Update sent successfully!';
+      if (result.push) {
+        message += ` Push: ${result.push.sent} delivered, ${result.push.failed} failed.`;
+      }
+      
+      this.showMessage(message, 'success');
+      
+      // Also save locally as backup
+      const updateData = {
+        id: `update_${Date.now()}`,
+        title: title,
+        content: content,
+        timestamp: Date.now(),
+        type: 'site_update',
+        priority: priority,
+        backend_id: result.notification?.id
+      };
+      
       let updates = JSON.parse(localStorage.getItem('site_updates') || '[]');
       updates.push(updateData);
       localStorage.setItem('site_updates', JSON.stringify(updates));
       
-      // Send push notification
-      console.log('Sending push notification...');
-      const result = await sendPushNotification(title, content, priority);
-      
-      if (result.success) {
-        this.showMessage('Update pushed and notification sent successfully!');
-      } else {
-        this.showMessage('Update saved but notification failed: ' + result.error, 'warning');
+      if (!isTest) {
+        this.clearUpdateForm();
       }
       
-      this.clearUpdateForm();
-      
     } catch (error) {
-      console.error('Error pushing update:', error);
-      this.showMessage('Error pushing update: ' + error.message, 'error');
+      console.error('❌ Error pushing update:', error);
+      
+      // Fallback: Save locally
+      const updateData = {
+        id: `update_${Date.now()}`,
+        title: title,
+        content: content,
+        timestamp: Date.now(),
+        type: 'site_update',
+        priority: priority,
+        offline: true
+      };
+      
+      let updates = JSON.parse(localStorage.getItem('site_updates') || '[]');
+      updates.push(updateData);
+      localStorage.setItem('site_updates', JSON.stringify(updates));
+      
+      this.showMessage(`⚠️ Update saved locally. Server error: ${error.message}`, 'warning');
+      
+      // Try to send push notification via fallback
+      try {
+        await sendPushNotification(title, content, priority);
+      } catch (pushError) {
+        console.warn('Fallback push also failed:', pushError);
+      }
+      
+    } finally {
+      sendBtn.innerHTML = originalText;
+      sendBtn.disabled = false;
     }
   }
   
@@ -413,7 +568,7 @@ class SimpleAdminPanel {
           const div = document.createElement('div');
           div.className = 'admin-gallery-item';
           div.innerHTML = 
-            '<img src="' + item.url + '" alt="' + (item.title || 'Image') + '" loading="lazy">' +
+            '<img src="' + (item.url || item.image_url) + '" alt="' + (item.title || 'Image') + '" loading="lazy">' +
             '<h4>' + (item.title || 'Untitled') + '</h4>' +
             '<p>' + (item.description || '') + '</p>' +
             '<div class="image-meta">' +
@@ -501,6 +656,7 @@ class SimpleAdminPanel {
       localStorage.setItem('messages', JSON.stringify(messages));
       this.showMessage('Message deleted successfully!');
       this.loadMessages();
+      this.loadStats();
     } catch (error) {
       console.error('Error deleting message:', error);
       this.showMessage('Error deleting message', 'error');
@@ -544,10 +700,16 @@ class SimpleAdminPanel {
       
       const messagesResult = simpleDatabase.getMessages();
       const totalMessages = document.getElementById('total-messages');
+      const totalUpdates = document.getElementById('total-updates');
       const todayActivity = document.getElementById('today-activity');
       
       if (totalMessages) {
         totalMessages.textContent = messagesResult.success ? messagesResult.messages.length : 0;
+      }
+      
+      if (totalUpdates) {
+        const updates = JSON.parse(localStorage.getItem('site_updates') || '[]');
+        totalUpdates.textContent = updates.length;
       }
       
       if (todayActivity) {
@@ -565,7 +727,7 @@ class SimpleAdminPanel {
     const div = document.createElement('div');
     div.className = type + '-message';
     div.innerHTML = 
-      '<i class="fas fa-' + (type === 'success' ? 'check-circle' : 'exclamation-circle') + '"></i>' +
+      '<i class="fas fa-' + (type === 'success' ? 'check-circle' : (type === 'warning' ? 'exclamation-triangle' : 'exclamation-circle')) + '"></i>' +
       '<span>' + message + '</span>' +
       '<button onclick="this.parentElement.remove()" style="margin-left: auto; background: none; border: none; cursor: pointer;"><i class="fas fa-times"></i></button>';
     
