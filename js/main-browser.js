@@ -52,6 +52,8 @@ class NotificationSystem {
     this.setupNotificationCenter();
     this.startPolling();
     this.setupToast();
+    // Load initial notifications
+    this.loadNotifications();
   }
   
   setupToast() {
@@ -84,20 +86,23 @@ class NotificationSystem {
   
   async checkForNewNotifications() {
     try {
-      if (!this.supabase) return;
+      console.log('Checking for new notifications since:', this.lastCheck);
       
-      const { data, error } = await this.supabase
-        .from('notifications')
-        .select('*')
-        .eq('sent', true)
-        .gt('created_at', this.lastCheck)
-        .order('created_at', { ascending: false });
+      // FIXED: Use backend API endpoint instead of direct Supabase query
+      const response = await fetch(
+        `${this.backendUrl}/api/notifications?since=${encodeURIComponent(this.lastCheck)}`
+      );
       
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      const data = result.notifications || [];
+      
+      console.log(`📬 Received ${data.length} new notifications`);
       
       if (data && data.length > 0) {
-        console.log(`📬 Received ${data.length} new notifications`);
-        
         // Add to notifications array
         this.notifications = [...data, ...this.notifications];
         
@@ -112,22 +117,26 @@ class NotificationSystem {
         // Update the notification center
         this.updateNotificationCenter();
         
-        // Update badge
-        this.unreadCount += data.length;
-        this.updateBadge();
+        // FIXED: Update lastCheck with the most recent notification timestamp
+        this.lastCheck = data[0].created_at;
         
         // Play sound for urgent notifications
         if (data.some(n => n.priority === 'urgent')) {
           this.playNotificationSound();
         }
+      } else {
+        // FIXED: If no new notifications, still update lastCheck to current time
+        this.lastCheck = new Date().toISOString();
       }
       
-      // Update last check time
-      this.lastCheck = new Date().toISOString();
+      // Save last check time
       localStorage.setItem('lastNotificationCheck', this.lastCheck);
       
     } catch (error) {
       console.error('Error checking notifications:', error);
+      // FIXED: Don't skip future checks - update to current time even on error
+      this.lastCheck = new Date().toISOString();
+      localStorage.setItem('lastNotificationCheck', this.lastCheck);
     }
   }
   
@@ -215,7 +224,7 @@ class NotificationSystem {
         </div>
         <div class="modal-footer">
           <span id="notification-count">0 unread</span>
-          <button onclick="notificationSystem?.markAllAsRead()" class="btn-link">
+          <button onclick="window.notificationSystem?.markAllAsRead()" class="btn-link">
             Mark all read
           </button>
         </div>
@@ -232,21 +241,15 @@ class NotificationSystem {
       
       container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Loading notifications...</div>';
       
-      if (!this.supabase) {
-        container.innerHTML = '<div class="error-message">Database connection not available</div>';
-        return;
+      // FIXED: Use backend API endpoint
+      const response = await fetch(`${this.backendUrl}/api/notifications?limit=50`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      const { data, error } = await this.supabase
-        .from('notifications')
-        .select('*')
-        .eq('sent', true)
-        .order('created_at', { ascending: false })
-        .limit(50);
-      
-      if (error) throw error;
-      
-      this.notifications = data || [];
+      const result = await response.json();
+      this.notifications = result.notifications || [];
       this.updateNotificationCenter();
       
     } catch (error) {
@@ -269,20 +272,18 @@ class NotificationSystem {
           <p>No notifications yet</p>
         </div>
       `;
+      this.updateBadge();
       return;
     }
     
-    const lastView = localStorage.getItem('lastNotificationsView');
     let html = '';
     
     this.notifications.forEach(notification => {
-      const isNew = lastView ? new Date(notification.created_at) > new Date(lastView) : true;
       const timeAgo = this.timeAgo(new Date(notification.created_at));
       const priority = notification.priority || 'normal';
-      const priorityClass = `priority-${priority}`;
       
       html += `
-        <div class="notification-item ${isNew ? 'unread' : ''} ${priorityClass}" data-id="${notification.id}">
+        <div class="notification-item" data-id="${notification.id}" data-created="${notification.created_at}">
           <div class="notification-icon">
             <i class="fas ${this.getPriorityIcon(priority)}"></i>
           </div>
@@ -301,11 +302,6 @@ class NotificationSystem {
     });
     
     container.innerHTML = html;
-    
-    // Add click handlers
-    container.querySelectorAll('.notification-item').forEach(item => {
-      item.addEventListener('click', () => this.markAsRead(item.dataset.id));
-    });
     
     // Update badge
     this.updateBadge();
@@ -341,28 +337,8 @@ class NotificationSystem {
     return Math.floor(seconds) + ' seconds ago';
   }
   
-  markAsRead(notificationId) {
-    const item = document.querySelector(`.notification-item[data-id="${notificationId}"]`);
-    if (item) {
-      item.classList.remove('unread');
-      this.unreadCount = Math.max(0, this.unreadCount - 1);
-      this.updateBadge();
-      
-      // Send to server (optional)
-      fetch(`${this.backendUrl}/api/notifications/${notificationId}/read`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ device_id: localStorage.getItem('deviceId') })
-      }).catch(() => {});
-    }
-  }
-  
   markAllAsRead() {
     localStorage.setItem('lastNotificationsView', new Date().toISOString());
-    document.querySelectorAll('.notification-item').forEach(item => {
-      item.classList.remove('unread');
-    });
-    this.unreadCount = 0;
     this.updateBadge();
     
     // Show toast
@@ -398,11 +374,16 @@ class NotificationSystem {
     this.showNotificationToast('Exported', `${data.length} notifications exported`);
   }
   
+  // FIXED: Improved badge logic
   updateBadge() {
     const badge = document.getElementById('message-count');
     if (!badge) return;
     
-    const unread = document.querySelectorAll('.notification-item.unread').length;
+    // FIXED: Calculate unread based on last view timestamp
+    const lastView = localStorage.getItem('lastNotificationsView');
+    const unread = this.notifications.filter(n => {
+      return !lastView || new Date(n.created_at) > new Date(lastView);
+    }).length;
     
     if (unread > 0) {
       badge.textContent = unread > 9 ? '9+' : unread;
@@ -752,11 +733,11 @@ document.addEventListener('DOMContentLoaded', function() {
   
   const supabaseInitialized = initializeSupabase();
   
-  // Initialize notification system
-  setTimeout(() => {
+  // FIXED: Initialize notification system immediately if Supabase is ready
+  if (supabaseInitialized) {
     notificationSystem = new NotificationSystem();
     window.notificationSystem = notificationSystem;
-  }, 500);
+  }
   
   // Initialize messaging after delay
   setTimeout(() => {
