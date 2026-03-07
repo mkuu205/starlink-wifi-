@@ -85,21 +85,20 @@ async function requestNotificationPermission() {
     if (permission === 'granted') {
       console.log('✅ Notification permission granted');
       
-      // ⚠️ IMPORTANT: Replace with your actual VAPID key from Firebase Console
-      // Get it from: Firebase Console > Project Settings > Cloud Messaging > Web Push Certificates
-      const vapidKey = 'BL2-1Ej72YPhk-TH1tExzaWd3eiUL_nzL2MMNwr8F9n1Nz3SxgOD88XOgoFIZIRTrsh1i9iXw_hsBYxEKffT7hY'; // <-- REPLACE THIS WITH YOUR ACTUAL KEY
-      
-      if (vapidKey && vapidKey !== 'BL2-1Ej72YPhk-TH1tExzaWd3eiUL_nzL2MMNwr8F9n1Nz3SxgOD88XOgoFIZIRTrsh1i9iXw_hsBYxEKffT7hY') {
-        try {
-          fcmToken = await messaging.getToken({ vapidKey: vapidKey });
-          console.log('✅ FCM Token received:', fcmToken);
-          await saveFCMToken(fcmToken);
-        } catch (tokenError) {
-          console.error('Error getting FCM token:', tokenError);
-        }
-      } else {
-        console.warn('⚠️ VAPID key not configured. Add your VAPID key from Firebase Console.');
-      }
+      // VAPID key from Firebase Console
+      const vapidKey = 'BL2-1Ej72YPhk-TH1tExzaWd3eiUL_nzL2MMNwr8F9n1Nz3SxgOD88XOgoFIZIRTrsh1i9iXw_hsBYxEKffT7hY';
+
+if (vapidKey) {
+  try {
+    fcmToken = await messaging.getToken({ vapidKey: vapidKey });
+    console.log('✅ FCM Token received:', fcmToken);
+    await saveFCMToken(fcmToken);
+  } catch (tokenError) {
+    console.error('Error getting FCM token:', tokenError);
+  }
+} else {
+  console.warn('⚠️ VAPID key not configured.');
+}
     } else {
       console.warn('❌ Notification permission denied');
     }
@@ -867,3 +866,4 @@ window.markNotificationAsRead = markNotificationAsRead;
 window.updateNotificationsBadge = updateNotificationsBadge;
 
 console.log('✅ Main script initialized');
+
