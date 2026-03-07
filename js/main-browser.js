@@ -599,7 +599,7 @@ async function loadGalleryPreview() {
     
     const { data, error } = await supabaseClient
       .from('gallery')
-      .select('id, title, description, category, image_url, url, visible')
+      .select('id, title, description, category, image_url, visible')
       .eq('visible', true)
       .order('created_at', { ascending: false })
       .limit(3);
@@ -887,3 +887,4 @@ window.refreshNotifications = () => notificationSystem?.refreshNotifications();
 window.exportNotifications = () => notificationSystem?.exportNotifications();
 
 console.log('✅ Main script initialized');
+
