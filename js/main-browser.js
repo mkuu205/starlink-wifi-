@@ -385,7 +385,7 @@ function createBundleCard(bundle, key) {
   return card;
 }
 
-// Load Gallery Preview - FIXED
+// Load Gallery Preview - FIXED: Removed 'url' column from select
 async function loadGalleryPreview() {
   const container = document.getElementById('gallery-preview-container');
   if (!container) return;
@@ -398,7 +398,7 @@ async function loadGalleryPreview() {
     
     const { data, error } = await supabaseClient
       .from('gallery')
-      .select('id, title, description, category, image_url, url, visible')
+      .select('id, title, description, category, image_url, visible')  // REMOVED: url
       .eq('visible', true)
       .order('created_at', { ascending: false })
       .limit(3);
@@ -430,8 +430,8 @@ function createGalleryPreviewItem(item) {
   galleryItem.className = 'gallery-preview-item';
   galleryItem.style.cssText = 'position: relative; overflow: hidden; border-radius: 8px;';
   
-  // Try multiple URL fields
-  const imageUrl = item.image_url || item.url || item.storage_url;
+  // Use only image_url (url column removed from schema)
+  const imageUrl = item.image_url;
   
   const imgWrapper = document.createElement('div');
   imgWrapper.style.cssText = 'width: 100%; height: 250px; background-color: #f3f4f6; display: flex; align-items: center; justify-content: center;';
@@ -476,7 +476,7 @@ function createGalleryPreviewItem(item) {
   return galleryItem;
 }
 
-// Load Full Gallery
+// Load Full Gallery - FIXED: Removed 'url' column from select
 async function loadFullGallery() {
   const container = document.getElementById('modalGalleryContainer');
   if (!container) return;
@@ -490,7 +490,7 @@ async function loadFullGallery() {
     
     const { data, error } = await supabaseClient
       .from('gallery')
-      .select('id, title, description, category, image_url, url, visible')
+      .select('id, title, description, category, image_url, visible')  // REMOVED: url
       .eq('visible', true)
       .order('created_at', { ascending: false });
     
@@ -516,13 +516,15 @@ async function loadFullGallery() {
   }
 }
 
+// Create Modal Gallery Item - FIXED: Use only image_url
 function createModalGalleryItem(item) {
   const galleryItem = document.createElement('div');
   galleryItem.className = 'modal-gallery-item';
   galleryItem.dataset.filter = item.category || 'all';
   galleryItem.style.cssText = 'cursor: pointer; position: relative; overflow: hidden; border-radius: 8px;';
   
-  const imageUrl = item.image_url || item.url || item.storage_url;
+  // Use only image_url (url column removed from schema)
+  const imageUrl = item.image_url;
   
   const imgWrapper = document.createElement('div');
   imgWrapper.style.cssText = 'width: 100%; height: 200px; background-color: #f3f4f6; display: flex; align-items: center; justify-content: center;';
@@ -865,4 +867,3 @@ window.markNotificationAsRead = markNotificationAsRead;
 window.updateNotificationsBadge = updateNotificationsBadge;
 
 console.log('✅ Main script initialized');
-
