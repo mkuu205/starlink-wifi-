@@ -10,6 +10,7 @@ let supabaseClient = null;
 let messaging = null;
 let fcmToken = null;
 let notificationSystem = null;
+let currentGalleryItems = [];
 
 // ==================== SUPABASE INITIALIZATION ====================
 
@@ -33,7 +34,7 @@ function initializeSupabase() {
 class NotificationSystem {
   constructor() {
     this.supabase = supabaseClient;
-    this.pollInterval = 30000; // 30 seconds
+    this.pollInterval = 30000;
     this.lastCheck = localStorage.getItem('lastNotificationCheck') || new Date(0).toISOString();
     this.notifications = [];
     this.unreadCount = 0;
@@ -56,16 +57,13 @@ class NotificationSystem {
       toast.id = 'notification-toast';
       toast.className = 'notification-toast';
       toast.innerHTML = `
-        <div class="toast-icon">
-          <i class="fas fa-bell"></i>
+        <div class="notification-content">
+          <i class="fas fa-info-circle"></i>
+          <span id="notification-message"></span>
+          <button class="notification-close" onclick="closeNotification()">
+            <i class="fas fa-times"></i>
+          </button>
         </div>
-        <div class="toast-content">
-          <div class="toast-title" id="toast-title">New Notification</div>
-          <div class="toast-message" id="toast-message"></div>
-        </div>
-        <button class="toast-close" onclick="this.parentElement.classList.remove('show')">
-          <i class="fas fa-times"></i>
-        </button>
       `;
       document.body.appendChild(toast);
     }
@@ -101,10 +99,6 @@ class NotificationSystem {
         
         this.updateNotificationCenter();
         this.lastCheck = data[0].created_at;
-        
-        if (data.some(n => n.priority === 'urgent')) {
-          this.playNotificationSound();
-        }
       } else {
         this.lastCheck = new Date().toISOString();
       }
@@ -120,12 +114,10 @@ class NotificationSystem {
   
   showNotificationToast(title, message) {
     const toast = document.getElementById('notification-toast');
-    const titleElement = document.getElementById('toast-title');
-    const messageElement = document.getElementById('toast-message');
+    const messageSpan = document.getElementById('notification-message');
     
-    if (toast && titleElement && messageElement) {
-      titleElement.textContent = title;
-      messageElement.textContent = message;
+    if (toast && messageSpan) {
+      messageSpan.textContent = `${title}: ${message}`;
       toast.classList.add('show');
       
       setTimeout(() => {
@@ -134,74 +126,21 @@ class NotificationSystem {
     }
   }
   
-  playNotificationSound() {
-    // Optional: Play sound for urgent notifications
-  }
-  
   setupNotificationCenter() {
-    if (!document.getElementById('messagesModal')) {
-      this.createNotificationModal();
-    }
-    
-    const closeBtn = document.querySelector('#messagesModal .close');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => this.closeNotificationCenter());
-    }
-    
-    const markAllBtn = document.getElementById('mark-all-read');
+    const markAllBtn = document.querySelector('.mark-read-btn');
     if (markAllBtn) {
       markAllBtn.addEventListener('click', () => this.markAllAsRead());
     }
     
-    const refreshBtn = document.getElementById('refresh-notifications');
+    const refreshBtn = document.querySelector('.refresh-btn');
     if (refreshBtn) {
       refreshBtn.addEventListener('click', () => this.refreshNotifications());
     }
     
-    const exportBtn = document.getElementById('export-notifications');
+    const exportBtn = document.querySelector('.export-btn');
     if (exportBtn) {
       exportBtn.addEventListener('click', () => this.exportNotifications());
     }
-  }
-  
-  createNotificationModal() {
-    const modal = document.createElement('div');
-    modal.id = 'messagesModal';
-    modal.className = 'modal';
-    modal.innerHTML = `
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2><i class="fas fa-bell"></i> Notifications & Updates</h2>
-          <div class="modal-actions">
-            <button id="refresh-notifications" class="btn-icon" title="Refresh">
-              <i class="fas fa-sync-alt"></i>
-            </button>
-            <button id="export-notifications" class="btn-icon" title="Export">
-              <i class="fas fa-download"></i>
-            </button>
-            <button id="mark-all-read" class="btn-icon" title="Mark all as read">
-              <i class="fas fa-check-double"></i>
-            </button>
-            <span class="close">&times;</span>
-          </div>
-        </div>
-        <div class="modal-body">
-          <div id="messagesContainer" class="messages-container">
-            <div class="loading-spinner">
-              <i class="fas fa-spinner fa-spin"></i> Loading notifications...
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <span id="notification-count">0 unread</span>
-          <button onclick="window.notificationSystem?.markAllAsRead()" class="btn-link">
-            Mark all read
-          </button>
-        </div>
-      </div>
-    `;
-    
-    document.body.appendChild(modal);
   }
   
   async loadNotifications() {
@@ -209,7 +148,7 @@ class NotificationSystem {
       const container = document.getElementById('messagesContainer');
       if (!container) return;
       
-      container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Loading notifications...</div>';
+      container.innerHTML = '<div class="no-messages"><i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #ccc; margin-bottom: 1rem;"></i><p>Loading notifications...</p></div>';
       
       const response = await fetch(`${this.backendUrl}/api/notifications?limit=50`);
       
@@ -225,7 +164,7 @@ class NotificationSystem {
       console.error('Error loading notifications:', error);
       const container = document.getElementById('messagesContainer');
       if (container) {
-        container.innerHTML = '<div class="error-message">Failed to load notifications</div>';
+        container.innerHTML = '<div class="no-messages"><i class="fas fa-exclamation-circle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i><p>Failed to load notifications</p></div>';
       }
     }
   }
@@ -236,8 +175,8 @@ class NotificationSystem {
     
     if (!this.notifications || this.notifications.length === 0) {
       container.innerHTML = `
-        <div class="empty-state">
-          <i class="fas fa-bell-slash"></i>
+        <div class="no-messages">
+          <i class="fas fa-bell-slash" style="font-size: 3rem; color: #ccc; margin-bottom: 1rem;"></i>
           <p>No notifications yet</p>
         </div>
       `;
@@ -246,25 +185,20 @@ class NotificationSystem {
     }
     
     let html = '';
+    const lastView = localStorage.getItem('lastNotificationsView');
     
     this.notifications.forEach(notification => {
+      const isUnread = !lastView || new Date(notification.created_at) > new Date(lastView);
       const timeAgo = this.timeAgo(new Date(notification.created_at));
-      const priority = notification.priority || 'normal';
       
       html += `
-        <div class="notification-item" data-id="${notification.id}" data-created="${notification.created_at}">
-          <div class="notification-icon">
-            <i class="fas ${this.getPriorityIcon(priority)}"></i>
+        <div class="message-item ${isUnread ? 'unread' : ''}">
+          <div class="message-header">
+            <span class="message-sender">${notification.title || 'System Update'}</span>
+            <span class="message-time">${timeAgo}</span>
           </div>
-          <div class="notification-content">
-            <div class="notification-header">
-              <strong>${notification.title || 'System Update'}</strong>
-              <span class="notification-time">${timeAgo}</span>
-            </div>
-            <div class="notification-message">
-              ${notification.message || notification.content || ''}
-            </div>
-            ${priority === 'urgent' ? '<span class="urgent-badge">URGENT</span>' : ''}
+          <div class="message-content">
+            ${notification.message || notification.content || ''}
           </div>
         </div>
       `;
@@ -272,15 +206,6 @@ class NotificationSystem {
     
     container.innerHTML = html;
     this.updateBadge();
-  }
-  
-  getPriorityIcon(priority) {
-    switch(priority) {
-      case 'urgent': return 'fa-exclamation-circle';
-      case 'high': return 'fa-arrow-circle-up';
-      case 'low': return 'fa-arrow-circle-down';
-      default: return 'fa-bell';
-    }
   }
   
   timeAgo(date) {
@@ -306,7 +231,7 @@ class NotificationSystem {
   
   markAllAsRead() {
     localStorage.setItem('lastNotificationsView', new Date().toISOString());
-    this.updateBadge();
+    this.updateNotificationCenter();
     this.showNotificationToast('Notifications', 'All marked as read');
   }
   
@@ -357,7 +282,7 @@ class NotificationSystem {
   }
   
   openNotificationCenter() {
-    const modal = document.getElementById('messagesModal');
+    const modal = document.querySelector('.messages-modal');
     if (modal) {
       modal.style.display = 'block';
       document.body.style.overflow = 'hidden';
@@ -366,7 +291,7 @@ class NotificationSystem {
   }
   
   closeNotificationCenter() {
-    const modal = document.getElementById('messagesModal');
+    const modal = document.querySelector('.messages-modal');
     if (modal) {
       modal.style.display = 'none';
       document.body.style.overflow = 'auto';
@@ -376,7 +301,6 @@ class NotificationSystem {
 
 // ==================== FIREBASE MESSAGING ====================
 
-// Initialize Firebase Cloud Messaging
 async function initializeMessaging() {
   if (typeof firebase === 'undefined') {
     return false;
@@ -387,7 +311,7 @@ async function initializeMessaging() {
   }
   
   try {
-    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    await navigator.serviceWorker.register('/firebase-messaging-sw.js');
     
     const firebaseConfig = {
       apiKey: "AIzaSyAtt28zOdzpr_CraaSFHzvIOcwggqMYuvE",
@@ -398,7 +322,10 @@ async function initializeMessaging() {
       appId: "1:61255418270:web:920ad2fa18a7e378e0168f"
     };
     
-    firebase.initializeApp(firebaseConfig);
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    
     messaging = firebase.messaging();
     
     await requestNotificationPermission();
@@ -419,7 +346,6 @@ async function initializeMessaging() {
   }
 }
 
-// Request Notification Permission
 async function requestNotificationPermission() {
   try {
     const permission = await Notification.requestPermission();
@@ -439,7 +365,6 @@ async function requestNotificationPermission() {
   }
 }
 
-// Save FCM Token to Database
 async function saveFCMToken(token) {
   try {
     if (!supabaseClient) return;
@@ -470,7 +395,287 @@ async function saveFCMToken(token) {
   }
 }
 
-// ==================== PAGE FUNCTIONS ====================
+// ==================== GALLERY FUNCTIONS ====================
+
+// Load Gallery Preview (for homepage)
+async function loadGalleryPreview() {
+  const container = document.getElementById('gallery-preview-container');
+  if (!container) return;
+  
+  container.innerHTML = '<div class="loading-gallery">' +
+    '<div class="loading-item"></div><div class="loading-item"></div><div class="loading-item"></div></div>';
+  
+  try {
+    if (!supabaseClient) throw new Error('Supabase not initialized');
+    
+    const { data, error } = await supabaseClient
+      .from('gallery')
+      .select('id, title, description, category, image_url, visible')
+      .eq('visible', true)
+      .order('created_at', { ascending: false })
+      .limit(6);
+    
+    if (error) throw error;
+    
+    container.innerHTML = '';
+    
+    if (!data || data.length === 0) {
+      container.innerHTML = '<div style="text-align: center; padding: 3rem; grid-column: 1/-1;">' +
+        '<i class="fas fa-images" style="font-size: 3rem; color: #9ca3af;"></i>' +
+        '<h3>No Gallery Items Yet</h3></div>';
+      return;
+    }
+    
+    data.forEach(item => {
+      const galleryItem = createGalleryPreviewItem(item);
+      galleryItem.addEventListener('click', () => openImageModal(item));
+      container.appendChild(galleryItem);
+    });
+  } catch (error) {
+    console.error('Error loading gallery:', error);
+    container.innerHTML = '<div style="text-align: center; padding: 3rem;">' +
+      '<i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444;"></i>' +
+      '<h3>Unable to Load Gallery</h3>' +
+      '<button onclick="loadGalleryPreview()" class="btn btn-secondary"><i class="fas fa-redo"></i> Retry</button></div>';
+  }
+}
+
+// Create Gallery Preview Item
+function createGalleryPreviewItem(item) {
+  const galleryItem = document.createElement('div');
+  galleryItem.className = 'gallery-preview-item';
+  galleryItem.style.cssText = 'position: relative; overflow: hidden; border-radius: 8px; cursor: pointer;';
+  
+  const imageUrl = item.image_url || item.url;
+  
+  const imgWrapper = document.createElement('div');
+  imgWrapper.style.cssText = 'width: 100%; height: 250px; background-color: #f3f4f6; display: flex; align-items: center; justify-content: center;';
+  
+  const img = document.createElement('img');
+  img.alt = item.title || 'Project Image';
+  img.style.cssText = 'max-width: 100%; max-height: 100%; object-fit: cover; width: 100%; height: 100%;';
+  img.loading = 'lazy';
+  
+  img.onerror = function() {
+    this.style.display = 'none';
+    const placeholder = document.createElement('div');
+    placeholder.style.cssText = 'display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%;';
+    placeholder.innerHTML = `
+      <i class="fas fa-wifi" style="font-size: 3rem; color: #3b82f6; margin-bottom: 10px;"></i>
+      <span style="color: #6b7280; font-size: 0.9rem;">${item.title || 'Installation'}</span>
+    `;
+    imgWrapper.appendChild(placeholder);
+  };
+  
+  if (imageUrl && imageUrl.trim() !== '') {
+    img.src = imageUrl;
+  } else {
+    img.onerror();
+  }
+  
+  imgWrapper.appendChild(img);
+  galleryItem.appendChild(imgWrapper);
+  
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.7); color: white; padding: 1rem;';
+  
+  let description = '';
+  if (item.description) {
+    description = item.description.substring(0, 100);
+    if (item.description.length > 100) description += '...';
+  }
+  
+  overlay.innerHTML = 
+    '<h4 style="margin: 0; font-size: 1rem;">' + (item.title || 'Project') + '</h4>' +
+    '<p style="margin: 0.5rem 0 0; font-size: 0.875rem; opacity: 0.9;">' + description + '</p>';
+  
+  galleryItem.appendChild(overlay);
+  
+  return galleryItem;
+}
+
+// Load Full Gallery for Modal
+async function loadFullGallery(filter = 'all') {
+  const container = document.getElementById('modalGalleryContainer');
+  if (!container) {
+    console.error('Modal gallery container not found');
+    return;
+  }
+  
+  container.innerHTML = '<div style="text-align: center; padding: 3rem; grid-column: 1/-1;">' +
+    '<i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #3b82f6;"></i>' +
+    '<h3>Loading Gallery...</h3></div>';
+  
+  try {
+    if (!supabaseClient) throw new Error('Supabase not initialized');
+    
+    let query = supabaseClient
+      .from('gallery')
+      .select('*')
+      .eq('visible', true)
+      .order('created_at', { ascending: false });
+    
+    // Map filter to database category
+    let dbFilter = filter;
+    if (filter === 'installation') dbFilter = 'Installations';
+    if (filter === 'business') dbFilter = 'Business';
+    if (filter === 'home') dbFilter = 'Home';
+    
+    if (filter !== 'all') {
+      query = query.eq('category', dbFilter);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    
+    currentGalleryItems = data || [];
+    
+    container.innerHTML = '';
+    
+    if (!data || data.length === 0) {
+      container.innerHTML = '<div style="text-align: center; padding: 3rem; grid-column: 1/-1;">' +
+        '<i class="fas fa-images" style="font-size: 3rem; color: #9ca3af;"></i>' +
+        '<h3>No Gallery Items Found</h3></div>';
+      return;
+    }
+    
+    data.forEach(item => {
+      const galleryItem = createModalGalleryItem(item);
+      container.appendChild(galleryItem);
+    });
+  } catch (error) {
+    console.error('Error loading full gallery:', error);
+    container.innerHTML = '<div style="text-align: center; padding: 3rem; grid-column: 1/-1;">' +
+      '<i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444;"></i>' +
+      '<h3>Unable to Load Gallery</h3>' +
+      '<button onclick="loadFullGallery()" class="btn btn-secondary"><i class="fas fa-redo"></i> Retry</button></div>';
+  }
+}
+
+// Create Modal Gallery Item
+function createModalGalleryItem(item) {
+  const galleryItem = document.createElement('div');
+  galleryItem.className = 'modal-gallery-item';
+  galleryItem.style.cssText = 'position: relative; overflow: hidden; border-radius: 8px; cursor: pointer; transition: transform 0.3s;';
+  
+  const imageUrl = item.image_url || item.url;
+  
+  const img = document.createElement('img');
+  img.src = imageUrl || 'https://via.placeholder.com/300x200?text=No+Image';
+  img.alt = item.title || 'Gallery Image';
+  img.style.cssText = 'width: 100%; height: 200px; object-fit: cover;';
+  img.loading = 'lazy';
+  
+  img.onerror = function() {
+    this.src = 'https://via.placeholder.com/300x200?text=Image+Not+Found';
+  };
+  
+  galleryItem.appendChild(img);
+  
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.7); color: white; padding: 10px; transform: translateY(100%); transition: transform 0.3s;';
+  overlay.innerHTML = `<strong>${item.title || 'Project'}</strong>`;
+  
+  galleryItem.appendChild(overlay);
+  
+  galleryItem.addEventListener('mouseenter', () => {
+    overlay.style.transform = 'translateY(0)';
+  });
+  
+  galleryItem.addEventListener('mouseleave', () => {
+    overlay.style.transform = 'translateY(100%)';
+  });
+  
+  galleryItem.addEventListener('click', () => openImageModal(item));
+  
+  return galleryItem;
+}
+
+// Open Image Modal
+function openImageModal(item) {
+  // Create image view modal if it doesn't exist
+  let modal = document.getElementById('imageViewModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'imageViewModal';
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-header">
+          <h3 id="imageModalTitle"></h3>
+          <button class="modal-close" onclick="closeImageModal()">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="modal-body" style="text-align: center;">
+          <img id="modalImage" src="" alt="" style="max-width: 100%; max-height: 70vh; border-radius: 8px;">
+          <p id="imageModalDescription" style="margin-top: 1rem;"></p>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+  
+  const titleEl = document.getElementById('imageModalTitle');
+  const imageEl = document.getElementById('modalImage');
+  const descEl = document.getElementById('imageModalDescription');
+  
+  if (titleEl) titleEl.textContent = item.title || 'Project Image';
+  if (imageEl) {
+    imageEl.src = item.image_url || item.url || 'https://via.placeholder.com/800x600?text=No+Image';
+    imageEl.alt = item.title || 'Project Image';
+  }
+  if (descEl) descEl.textContent = item.description || '';
+  
+  modal.style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+
+// Close Image Modal
+function closeImageModal() {
+  const modal = document.getElementById('imageViewModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+  }
+}
+
+// Open Gallery Modal
+function openGalleryModal() {
+  const modal = document.getElementById('galleryModal');
+  if (modal) {
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    loadFullGallery('all');
+  }
+}
+
+// Close Gallery Modal
+function closeGalleryModal() {
+  const modal = document.getElementById('galleryModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+  }
+}
+
+// Setup Gallery Filters
+function setupGalleryFilters() {
+  const filterButtons = document.querySelectorAll('.filter-btn');
+  if (!filterButtons.length) return;
+  
+  filterButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      filterButtons.forEach(btn => btn.classList.remove('active'));
+      this.classList.add('active');
+      const filter = this.getAttribute('data-filter') || 'all';
+      loadFullGallery(filter);
+    });
+  });
+}
+
+// ==================== BUNDLES FUNCTIONS ====================
 
 // Load Bundles
 async function loadBundles() {
@@ -535,145 +740,8 @@ function createBundleCard(bundle, key) {
   return card;
 }
 
-// Load Gallery Preview
-async function loadGalleryPreview() {
-  const container = document.getElementById('gallery-preview-container');
-  if (!container) return;
-  
-  container.innerHTML = '<div class="loading-gallery">' +
-    '<div class="loading-item"></div><div class="loading-item"></div><div class="loading-item"></div></div>';
-  
-  try {
-    if (!supabaseClient) throw new Error('Supabase not initialized');
-    
-    const { data, error } = await supabaseClient
-      .from('gallery')
-      .select('id, title, description, category, image_url, visible')
-      .eq('visible', true)
-      .order('created_at', { ascending: false })
-      .limit(6);
-    
-    if (error) throw error;
-    
-    container.innerHTML = '';
-    
-    if (!data || data.length === 0) {
-      container.innerHTML = '<div style="text-align: center; padding: 3rem;">' +
-        '<i class="fas fa-images" style="font-size: 3rem; color: #9ca3af;"></i>' +
-        '<h3>No Gallery Items Yet</h3></div>';
-      return;
-    }
-    
-    data.forEach(item => container.appendChild(createGalleryPreviewItem(item)));
-  } catch (error) {
-    console.error('Error loading gallery:', error);
-    container.innerHTML = '<div style="text-align: center; padding: 3rem;">' +
-      '<i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444;"></i>' +
-      '<h3>Unable to Load Gallery</h3>' +
-      '<button onclick="loadGalleryPreview()" class="btn btn-secondary"><i class="fas fa-redo"></i> Retry</button></div>';
-  }
-}
+// ==================== CONTACT FORM ====================
 
-function createGalleryPreviewItem(item) {
-  const galleryItem = document.createElement('div');
-  galleryItem.className = 'gallery-preview-item';
-  galleryItem.style.cssText = 'position: relative; overflow: hidden; border-radius: 8px;';
-  
-  const imageUrl = item.image_url || item.url;
-  
-  const imgWrapper = document.createElement('div');
-  imgWrapper.style.cssText = 'width: 100%; height: 250px; background-color: #f3f4f6; display: flex; align-items: center; justify-content: center;';
-  
-  const img = document.createElement('img');
-  img.alt = item.title || 'Project Image';
-  img.style.cssText = 'max-width: 100%; max-height: 100%; object-fit: cover; width: 100%; height: 100%;';
-  
-  img.onerror = function() {
-    this.style.display = 'none';
-    const placeholder = document.createElement('div');
-    placeholder.style.cssText = 'display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%;';
-    placeholder.innerHTML = `
-      <i class="fas fa-wifi" style="font-size: 3rem; color: #3b82f6; margin-bottom: 10px;"></i>
-      <span style="color: #6b7280; font-size: 0.9rem;">${item.title || 'Installation'}</span>
-    `;
-    imgWrapper.appendChild(placeholder);
-  };
-  
-  if (imageUrl && imageUrl.trim() !== '') {
-    img.src = imageUrl;
-  } else {
-    img.onerror();
-  }
-  
-  imgWrapper.appendChild(img);
-  galleryItem.appendChild(imgWrapper);
-  
-  const overlay = document.createElement('div');
-  overlay.style.cssText = 'position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.7); color: white; padding: 1rem;';
-  
-  let description = '';
-  if (item.description) {
-    description = item.description.substring(0, 100);
-    if (item.description.length > 100) description += '...';
-  }
-  
-  overlay.innerHTML = 
-    '<h4 style="margin: 0; font-size: 1rem;">' + (item.title || 'Project') + '</h4>' +
-    '<p style="margin: 0.5rem 0 0; font-size: 0.875rem; opacity: 0.9;">' + description + '</p>';
-  
-  galleryItem.appendChild(overlay);
-  
-  return galleryItem;
-}
-
-// Load Full Gallery with Categories
-async function loadFullGallery(category = 'all') {
-  const container = document.getElementById('full-gallery-container');
-  if (!container) return;
-  
-  container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Loading gallery...</div>';
-  
-  try {
-    if (!supabaseClient) throw new Error('Supabase not initialized');
-    
-    let query = supabaseClient
-      .from('gallery')
-      .select('*')
-      .eq('visible', true)
-      .order('created_at', { ascending: false });
-    
-    if (category !== 'all') {
-      query = query.eq('category', category);
-    }
-    
-    const { data, error } = await query;
-    
-    if (error) throw error;
-    
-    container.innerHTML = '';
-    
-    if (!data || data.length === 0) {
-      container.innerHTML = '<div style="text-align: center; padding: 3rem; grid-column: 1 / -1;">' +
-        '<i class="fas fa-images" style="font-size: 3rem; color: #9ca3af;"></i>' +
-        '<h3>No Gallery Items Found</h3></div>';
-      return;
-    }
-    
-    data.forEach(item => {
-      const galleryItem = createGalleryPreviewItem(item);
-      galleryItem.classList.add('modal-gallery-item');
-      container.appendChild(galleryItem);
-    });
-  } catch (error) {
-    console.error('Error loading full gallery:', error);
-    container.innerHTML = '<div style="text-align: center; padding: 3rem; grid-column: 1 / -1;">' +
-      '<i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444;"></i>' +
-      '<h3>Unable to Load Gallery</h3>' +
-      '<button onclick="loadFullGallery()" class="btn btn-secondary"><i class="fas fa-redo"></i> Retry</button></div>';
-  }
-}
-
-// Setup Contact Form
 function setupContactForm() {
   const form = document.getElementById('contact-form');
   if (!form) return;
@@ -725,114 +793,7 @@ function setupContactForm() {
   });
 }
 
-// Setup Gallery Filters
-function setupGalleryFilters() {
-  const filterButtons = document.querySelectorAll('.gallery-filter');
-  if (!filterButtons.length) return;
-  
-  filterButtons.forEach(button => {
-    button.addEventListener('click', function() {
-      filterButtons.forEach(btn => btn.classList.remove('active'));
-      this.classList.add('active');
-      const category = this.getAttribute('data-category') || 'all';
-      loadFullGallery(category);
-    });
-  });
-}
-
-// ==================== INITIALIZATION ====================
-
-// Initialize on DOM Ready
-document.addEventListener('DOMContentLoaded', function() {
-  const supabaseInitialized = initializeSupabase();
-  
-  if (supabaseInitialized) {
-    notificationSystem = new NotificationSystem();
-    window.notificationSystem = notificationSystem;
-  }
-  
-  setTimeout(() => {
-    initializeMessaging();
-  }, 1000);
-  
-  const mobileMenu = document.querySelector('.mobile-menu');
-  const navLinks = document.querySelector('.nav-links');
-  
-  if (mobileMenu && navLinks) {
-    mobileMenu.addEventListener('click', function() {
-      navLinks.classList.toggle('active');
-      mobileMenu.innerHTML = navLinks.classList.contains('active')
-        ? '<i class="fas fa-times"></i>'
-        : '<i class="fas fa-bars"></i>';
-    });
-  }
-
-  const messagesBtn = document.getElementById('messages-notification');
-  if (messagesBtn) {
-    messagesBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (notificationSystem) {
-        notificationSystem.openNotificationCenter();
-      }
-    });
-  }
-  
-  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function(e) {
-      const href = this.getAttribute('href');
-      if (href.startsWith('#') && href !== '#') {
-        e.preventDefault();
-        const target = document.querySelector(href);
-        if (target) {
-          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }
-    });
-  });
-
-  if (supabaseInitialized) {
-    loadBundles();
-    loadGalleryPreview();
-    loadFullGallery();
-  }
-  
-  setupContactForm();
-  setupGalleryFilters();
-  
-  window.addEventListener('click', (e) => {
-    const modal = document.getElementById('messagesModal');
-    if (e.target === modal && notificationSystem) {
-      notificationSystem.closeNotificationCenter();
-    }
-  });
-  
-  const galleryModal = document.getElementById('galleryModal');
-  if (galleryModal) {
-    galleryModal.addEventListener('click', (e) => {
-      if (e.target === galleryModal) {
-        closeGalleryModal();
-      }
-    });
-  }
-});
-
 // ==================== UTILITY FUNCTIONS ====================
-
-function openGalleryModal() {
-  const modal = document.getElementById('galleryModal');
-  if (!modal) return;
-  modal.style.display = 'block';
-  document.body.style.overflow = 'hidden';
-}
-
-function closeGalleryModal() {
-  const modal = document.getElementById('galleryModal');
-  if (modal) {
-    modal.style.display = 'none';
-    document.body.style.overflow = 'auto';
-  }
-}
 
 function selectBundle(bundleId) {
   alert('Thank you for selecting bundle ' + bundleId + '! Our sales team will contact you shortly.');
@@ -881,6 +842,142 @@ function openFacebook() { window.open('https://facebook.com', '_blank'); }
 function openTwitter() { window.open('https://twitter.com', '_blank'); }
 function openInstagram() { window.open('https://instagram.com', '_blank'); }
 
+// Notification functions
+function closeNotification() {
+  const toast = document.getElementById('notification-toast');
+  if (toast) toast.classList.remove('show');
+}
+
+function openMessagesModal() {
+  if (notificationSystem) {
+    notificationSystem.openNotificationCenter();
+  }
+}
+
+function closeMessagesModal() {
+  if (notificationSystem) {
+    notificationSystem.closeNotificationCenter();
+  }
+}
+
+function markAllNotificationsAsRead() {
+  if (notificationSystem) {
+    notificationSystem.markAllAsRead();
+  }
+}
+
+function refreshNotifications() {
+  if (notificationSystem) {
+    notificationSystem.refreshNotifications();
+  }
+}
+
+function exportNotifications() {
+  if (notificationSystem) {
+    notificationSystem.exportNotifications();
+  }
+}
+
+// ==================== INITIALIZATION ====================
+
+document.addEventListener('DOMContentLoaded', function() {
+  const supabaseInitialized = initializeSupabase();
+  
+  if (supabaseInitialized) {
+    notificationSystem = new NotificationSystem();
+    window.notificationSystem = notificationSystem;
+  }
+  
+  setTimeout(() => {
+    initializeMessaging();
+  }, 1000);
+  
+  // Mobile Menu Toggle
+  const mobileMenu = document.querySelector('.mobile-menu');
+  const navLinks = document.querySelector('.nav-links');
+  
+  if (mobileMenu && navLinks) {
+    mobileMenu.addEventListener('click', function() {
+      navLinks.classList.toggle('active');
+      const icon = mobileMenu.querySelector('i');
+      if (icon) {
+        icon.className = navLinks.classList.contains('active') ? 'fas fa-times' : 'fas fa-bars';
+      }
+    });
+  }
+
+  // Messages Button
+  const messagesBtn = document.getElementById('messages-notification');
+  if (messagesBtn) {
+    messagesBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      openMessagesModal();
+    });
+  }
+  
+  // Smooth Scrolling
+  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function(e) {
+      const href = this.getAttribute('href');
+      if (href.startsWith('#') && href !== '#') {
+        e.preventDefault();
+        const target = document.querySelector(href);
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+    });
+  });
+
+  // Load Data
+  if (supabaseInitialized) {
+    loadBundles();
+    loadGalleryPreview();
+  }
+  
+  setupContactForm();
+  setupGalleryFilters();
+  
+  // Close modals on outside click
+  window.addEventListener('click', (e) => {
+    const galleryModal = document.getElementById('galleryModal');
+    if (e.target === galleryModal) {
+      closeGalleryModal();
+    }
+    
+    const messagesModal = document.querySelector('.messages-modal');
+    if (e.target === messagesModal) {
+      closeMessagesModal();
+    }
+    
+    const imageModal = document.getElementById('imageViewModal');
+    if (e.target === imageModal) {
+      closeImageModal();
+    }
+  });
+  
+  // Close dropdowns when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.dropdown-toggle') && !e.target.closest('.dropdown-menu')) {
+      document.querySelectorAll('.dropdown-menu').forEach(menu => {
+        menu.classList.remove('show');
+      });
+    }
+  });
+  
+  // Dropdown toggles
+  document.querySelectorAll('.dropdown-toggle').forEach(toggle => {
+    toggle.addEventListener('click', function(e) {
+      e.preventDefault();
+      const dropdown = this.nextElementSibling;
+      if (dropdown && dropdown.classList.contains('dropdown-menu')) {
+        dropdown.classList.toggle('show');
+      }
+    });
+  });
+});
+
 // Export Global Functions
 window.showBundles = showBundles;
 window.hideBundles = hideBundles;
@@ -889,7 +986,6 @@ window.closeGalleryModal = closeGalleryModal;
 window.selectBundle = selectBundle;
 window.loadBundles = loadBundles;
 window.loadGalleryPreview = loadGalleryPreview;
-window.loadFullGallery = loadFullGallery;
 window.openWhatsApp = openWhatsApp;
 window.callNow = callNow;
 window.sendEmail = sendEmail;
@@ -897,8 +993,10 @@ window.openLocation = openLocation;
 window.openFacebook = openFacebook;
 window.openTwitter = openTwitter;
 window.openInstagram = openInstagram;
-window.openNotificationsModal = () => notificationSystem?.openNotificationCenter();
-window.closeMessagesModal = () => notificationSystem?.closeNotificationCenter();
-window.markAllNotificationsAsRead = () => notificationSystem?.markAllAsRead();
-window.refreshNotifications = () => notificationSystem?.refreshNotifications();
-window.exportNotifications = () => notificationSystem?.exportNotifications();
+window.openMessagesModal = openMessagesModal;
+window.closeMessagesModal = closeMessagesModal;
+window.markAllNotificationsAsRead = markAllNotificationsAsRead;
+window.refreshNotifications = refreshNotifications;
+window.exportNotifications = exportNotifications;
+window.closeNotification = closeNotification;
+window.closeImageModal = closeImageModal;
