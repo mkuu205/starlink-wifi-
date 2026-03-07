@@ -1,8 +1,8 @@
-// firebase-messaging-sw.js
+// firebase-messaging-sw.js - Service Worker for Push Notifications
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
-// Your Firebase config
+// Firebase Configuration
 const firebaseConfig = {
   apiKey: "AIzaSyAtt28zOdzpr_CraaSFHzvIOcwggqMYuvE",
   authDomain: "starlink-token-wifi.firebaseapp.com",
@@ -17,31 +17,42 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const messaging = firebase.messaging();
 
-// Handle background messages
+// Handle Background Messages
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message:', payload);
   
-  const notificationTitle = payload.notification?.title || 'Starlink WiFi';
+  const notificationTitle = payload.notification?.title || 'Starlink WiFi Update';
   const notificationOptions = {
     body: payload.notification?.body || 'You have a new message',
-    icon: payload.notification?.icon || '/logo.png',
+    icon: '/logo.png',
+    badge: '/logo.png',
+    tag: payload.data?.tag || 'default',
+    requireInteraction: true,
     data: payload.data
   };
 
-  // Show notification
   self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
-// Handle notification click
+// Handle Notification Click
 self.addEventListener('notificationclick', (event) => {
   console.log('[firebase-messaging-sw.js] Notification click received.');
   
   event.notification.close();
   
-  // Handle click action
-  if (event.notification.data && event.notification.data.url) {
-    event.waitUntil(
-      clients.openWindow(event.notification.data.url)
-    );
-  }
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      const url = event.notification.data?.url || '/';
+      
+      for (const client of clientList) {
+        if (client.url === url && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      
+      if (clients.openWindow) {
+        return clients.openWindow(url);
+      }
+    })
+  );
 });
