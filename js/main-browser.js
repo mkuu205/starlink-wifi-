@@ -833,9 +833,9 @@ function openGalleryModal() {
   if (!modal) return;
   modal.style.display = 'block';
   document.body.style.overflow = 'hidden';
-    if (!document.querySelector('.modal-gallery-item')) {
-  console.log("Gallery modal opened");
-    }
+  if (!document.querySelector('.modal-gallery-item')) {
+  }
+}
 
 function closeGalleryModal() {
   const modal = document.getElementById('galleryModal');
@@ -888,6 +888,7 @@ window.refreshNotifications = () => notificationSystem?.refreshNotifications();
 window.exportNotifications = () => notificationSystem?.exportNotifications();
 
 console.log('✅ Main script initialized');
+
 
 
 
