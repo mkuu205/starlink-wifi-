@@ -38,7 +38,7 @@ const simpleDatabase = {
   }
 };
 
-// Send Push Notification via Backend
+// Send Push Notification via Backend - USING ONLY THIS ENDPOINT
 async function sendPushNotification(title, message, priority = 'normal') {
   try {
     console.log('📨 Sending push notification:', { title, message, priority });
@@ -69,23 +69,10 @@ async function sendPushNotification(title, message, priority = 'normal') {
     
   } catch (error) {
     console.error('❌ Error sending push notification:', error);
-    
-    // Fallback: Store in localStorage
-    const pending = JSON.parse(localStorage.getItem('pending_notifications') || '[]');
-    pending.push({
-      id: 'notif_' + Date.now(),
-      title: title,
-      message: message,
-      priority: priority,
-      timestamp: Date.now(),
-      sent: false
-    });
-    localStorage.setItem('pending_notifications', JSON.stringify(pending));
-    
+    // NO FALLBACK - just return error
     return { 
       success: false, 
-      error: error.message,
-      fallback: 'Stored for client-side retrieval'
+      error: error.message
     };
   }
 }
@@ -127,7 +114,7 @@ class SimpleAdminPanel {
         this.showMessage('✅ Connected to server', 'success');
       }
     } catch (error) {
-      this.showMessage('⚠️ Server connection failed - using local storage', 'warning');
+      this.showMessage('⚠️ Server connection failed', 'warning');
     }
   }
   
@@ -167,7 +154,7 @@ class SimpleAdminPanel {
       updateBundleBtn.addEventListener('click', () => this.updateBundle());
     }
     
-    // Push Update
+    // Push Update - USING THE PUSH NOTIFICATION ENDPOINT
     const pushUpdateBtn = document.getElementById('push-update');
     if (pushUpdateBtn) {
       pushUpdateBtn.addEventListener('click', () => this.pushUpdate());
@@ -245,7 +232,6 @@ class SimpleAdminPanel {
   clearCache() {
     if (confirm('Clear all cached data? This will not affect server data.')) {
       localStorage.removeItem('site_updates');
-      localStorage.removeItem('pending_notifications');
       this.showMessage('Cache cleared successfully');
     }
   }
@@ -255,7 +241,6 @@ class SimpleAdminPanel {
       gallery: simpleDatabase.getImages().images,
       messages: simpleDatabase.getMessages().messages,
       bundles: simpleDatabase.getBundles().bundles,
-      updates: JSON.parse(localStorage.getItem('site_updates') || '[]'),
       exportDate: new Date().toISOString()
     };
     
@@ -339,15 +324,6 @@ class SimpleAdminPanel {
       let gallery = JSON.parse(localStorage.getItem('gallery') || '[]');
       gallery.push(imageData);
       localStorage.setItem('gallery', JSON.stringify(gallery));
-      
-      // Send notification
-      if (typeof emailNotifier !== 'undefined') {
-        try {
-          await emailNotifier.sendImageUploadNotification(imageData);
-        } catch (err) {
-          console.error('Notification error:', err);
-        }
-      }
       
       setTimeout(() => {
         this.showMessage('Image uploaded successfully!');
@@ -433,7 +409,7 @@ class SimpleAdminPanel {
     }
   }
   
-  // Push update with notification - FIXED
+  // Push update with notification - USING ONLY /api/send-push-notification
   async pushUpdate(isTest = false) {
     const updateTitle = document.getElementById('update-title');
     const updateContent = document.getElementById('update-content');
@@ -457,18 +433,19 @@ class SimpleAdminPanel {
     sendBtn.disabled = true;
     
     try {
-      console.log('📤 Sending update to:', this.backendUrl);
+      console.log('📤 Sending push notification to:', `${this.backendUrl}/api/send-push-notification`);
       
-      // Send to backend API
-      const response = await fetch(`${this.backendUrl}/api/send-site-update`, {
+      // Send to backend API - USING THE SPECIFIED ENDPOINT
+      const response = await fetch(`${this.backendUrl}/api/send-push-notification`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           title: title,
-          message: content,
-          priority: priority
+          body: content,
+          priority: priority,
+          topic: 'all_users'
         })
       });
       
@@ -479,61 +456,23 @@ class SimpleAdminPanel {
       
       const result = await response.json();
       
-      console.log('✅ Update sent:', result);
+      console.log('✅ Push notification sent:', result);
       
-      // Show success message with details
+      // Show success message
       let message = isTest ? '✅ Test notification sent!' : '✅ Update sent successfully!';
-      if (result.push) {
-        message += ` Push: ${result.push.sent} delivered, ${result.push.failed} failed.`;
+      if (result.sent !== undefined) {
+        message += ` Delivered to ${result.sent} devices.`;
       }
       
       this.showMessage(message, 'success');
-      
-      // Also save locally as backup
-      const updateData = {
-        id: `update_${Date.now()}`,
-        title: title,
-        content: content,
-        timestamp: Date.now(),
-        type: 'site_update',
-        priority: priority,
-        backend_id: result.notification?.id
-      };
-      
-      let updates = JSON.parse(localStorage.getItem('site_updates') || '[]');
-      updates.push(updateData);
-      localStorage.setItem('site_updates', JSON.stringify(updates));
       
       if (!isTest) {
         this.clearUpdateForm();
       }
       
     } catch (error) {
-      console.error('❌ Error pushing update:', error);
-      
-      // Fallback: Save locally
-      const updateData = {
-        id: `update_${Date.now()}`,
-        title: title,
-        content: content,
-        timestamp: Date.now(),
-        type: 'site_update',
-        priority: priority,
-        offline: true
-      };
-      
-      let updates = JSON.parse(localStorage.getItem('site_updates') || '[]');
-      updates.push(updateData);
-      localStorage.setItem('site_updates', JSON.stringify(updates));
-      
-      this.showMessage(`⚠️ Update saved locally. Server error: ${error.message}`, 'warning');
-      
-      // Try to send push notification via fallback
-      try {
-        await sendPushNotification(title, content, priority);
-      } catch (pushError) {
-        console.warn('Fallback push also failed:', pushError);
-      }
+      console.error('❌ Error sending push notification:', error);
+      this.showMessage(`❌ Failed to send: ${error.message}`, 'error');
       
     } finally {
       sendBtn.innerHTML = originalText;
@@ -708,8 +647,7 @@ class SimpleAdminPanel {
       }
       
       if (totalUpdates) {
-        const updates = JSON.parse(localStorage.getItem('site_updates') || '[]');
-        totalUpdates.textContent = updates.length;
+        totalUpdates.textContent = '0'; // No local storage for updates now
       }
       
       if (todayActivity) {
