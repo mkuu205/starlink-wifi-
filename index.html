@@ -346,6 +346,11 @@
         .btn-primary:hover {
             transform: translateY(-2px);
         }
+
+        /* About section hidden by default */
+        #about {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -379,7 +384,7 @@
                         <a href="#contact">Business Solutions</a>
                     </div>
                 </li>
-                <li><a href="#about">About</a></li>
+                <li><a href="javascript:void(0)" onclick="toggleAbout()">About</a></li>
                 <li><a href="#contact">Contact</a></li>
                 <li>
                  <button
@@ -528,7 +533,7 @@
         </div>
     </section>
 
-    <!-- About Section -->
+    <!-- About Section (Hidden by default) -->
     <section id="about" class="portfolio" style="background:#f9fafb;">
       <div class="container">
 
@@ -629,6 +634,13 @@
               <i class="fas fa-phone"></i> Call / WhatsApp 0713124673
             </a>
           </div>
+        </div>
+
+        <!-- Close About button -->
+        <div class="section-footer fade-in" style="margin-top:30px;">
+          <button onclick="toggleAbout()" class="btn btn-outline">
+            <i class="fas fa-times"></i> Close About
+          </button>
         </div>
 
       </div>
@@ -755,7 +767,7 @@
                         <li><a href="#home">Home</a></li>
                         <li><a href="#portfolio">Services</a></li>
                         <li><a href="javascript:void(0)" onclick="openGalleryModal()">Gallery</a></li>
-                        <li><a href="#about">About</a></li>
+                        <li><a href="javascript:void(0)" onclick="toggleAbout()">About</a></li>
                         <li><a href="#contact">Contact</a></li>
                     </ul>
                 </div>
@@ -858,6 +870,38 @@
     <!-- Scripts -->
     <script src="js/main-browser.js"></script>
     <script>
+        // Toggle About section visibility
+        function toggleAbout() {
+            const aboutSection = document.getElementById('about');
+            if (aboutSection.style.display === 'none' || aboutSection.style.display === '') {
+                aboutSection.style.display = 'block';
+                // Scroll to about section
+                aboutSection.scrollIntoView({ behavior: 'smooth' });
+                // Initialize observer for fade-in effects
+                setTimeout(() => {
+                    document.querySelectorAll('#about .fade-in').forEach(el => {
+                        if (isElementInViewport(el)) {
+                            el.classList.add('show');
+                        }
+                    });
+                }, 100);
+            } else {
+                aboutSection.style.display = 'none';
+            }
+        }
+
+        // Helper function to check if element is in viewport
+        function isElementInViewport(el) {
+            const rect = el.getBoundingClientRect();
+            return (
+                rect.top >= 0 &&
+                rect.left >= 0 &&
+                rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+                rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+            );
+        }
+
+        // Intersection Observer for fade-in effects
         const observer = new IntersectionObserver(entries => {
           entries.forEach(entry => {
             if(entry.isIntersecting){
@@ -866,6 +910,7 @@
           });
         });
 
+        // Observe fade-in elements when they become visible
         document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
     </script>
 </body>
