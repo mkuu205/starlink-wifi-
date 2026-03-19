@@ -402,6 +402,38 @@
         .back-home-btn i {
             font-size: 18px;
         }
+
+        /* Dropdown menu styles */
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            background: white;
+            min-width: 200px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            padding: 10px 0;
+            z-index: 1000;
+        }
+
+        .nav-links li {
+            position: relative;
+        }
+
+        .nav-links li:hover .dropdown-menu {
+            display: block;
+        }
+
+        .dropdown-menu a {
+            display: block;
+            padding: 10px 20px;
+            color: #333;
+            text-decoration: none;
+            transition: background 0.3s;
+        }
+
+        .dropdown-menu a:hover {
+            background: #f5f5f5;
+        }
     </style>
 </head>
 <body>
@@ -422,34 +454,35 @@
                 <ul class="nav-links">
                     <li><a href="#home">Home</a></li>
                     <li><a href="#portfolio">Services</a></li>
-                    <li>
-                        <a href="#gallery" class="dropdown-toggle">
+                    <li class="dropdown">
+                        <a href="javascript:void(0)" class="dropdown-toggle" onclick="toggleDropdown(this)">
                             Gallery <i class="fas fa-chevron-down"></i>
                         </a>
                         <div class="dropdown-menu">
-                            <a href="#gallery-preview">Featured Projects</a>
-                            <a href="javascript:void(0)" onclick="openGalleryModal()">View All Photos</a>
-                            <a href="#contact">Request Site Visit</a>
+                            <a href="javascript:void(0)" onclick="closeAllDropdowns(); openGalleryModal()">Featured Projects</a>
+                            <a href="javascript:void(0)" onclick="closeAllDropdowns(); openGalleryModal()">View All Photos</a>
+                            <a href="javascript:void(0)" onclick="closeAllDropdowns(); scrollToContact()">Request Site Visit</a>
                         </div>
                     </li>
-                    <li>
-                        <a href="#bundles" class="dropdown-toggle">
+                    <li class="dropdown">
+                        <a href="javascript:void(0)" class="dropdown-toggle" onclick="toggleDropdown(this)">
                             Packages <i class="fas fa-chevron-down"></i>
                         </a>
                         <div class="dropdown-menu">
-                            <a href="javascript:void(0)" onclick="showBundles()">View All Bundles</a>
-                            <a href="#contact">Get Custom Quote</a>
-                            <a href="#contact">Business Solutions</a>
+                            <a href="javascript:void(0)" onclick="closeAllDropdowns(); showBundles()">View All Bundles</a>
+                            <a href="javascript:void(0)" onclick="closeAllDropdowns(); scrollToContact()">Get Custom Quote</a>
+                            <a href="javascript:void(0)" onclick="closeAllDropdowns(); scrollToContact()">Business Solutions</a>
                         </div>
                     </li>
                     <li><a href="javascript:void(0)" onclick="showAbout()">About</a></li>
-                    <li><a href="#contact">Contact</a></li>
+                    <li><a href="javascript:void(0)" onclick="scrollToContact()">Contact</a></li>
                     <li>
                      <button
                 type="button"
                 class="admin-btn"
                 id="messages-notification"
                 style="position: relative;"
+                onclick="openMessagesModal()"
             >
                 <i class="fas fa-envelope"></i> Messages
                 <span id="message-count" class="notification-badge" style="display: none;">0</span>
@@ -506,7 +539,7 @@
                         </div>
                         <h3>WiFi Installation</h3>
                         <p>Professional installation of high-speed WiFi networks with modern equipment</p>
-                        <a href="#contact" class="card-link">Get Quote →</a>
+                        <a href="javascript:void(0)" onclick="scrollToContact()" class="card-link">Get Quote →</a>
                     </div>
                     
                     <div class="portfolio-card featured">
@@ -525,7 +558,7 @@
                         </div>
                         <h3>24/7 Support</h3>
                         <p>Round-the-clock technical support and maintenance</p>
-                        <a href="#contact" class="card-link">Contact Support →</a>
+                        <a href="javascript:void(0)" onclick="scrollToContact()" class="card-link">Contact Support →</a>
                     </div>
                     
                     <div class="portfolio-card">
@@ -534,7 +567,7 @@
                         </div>
                         <h3>Network Setup</h3>
                         <p>Complete network infrastructure setup for businesses</p>
-                        <a href="#contact" class="card-link">Learn More →</a>
+                        <a href="javascript:void(0)" onclick="scrollToContact()" class="card-link">Learn More →</a>
                     </div>
                 </div>
             </div>
@@ -561,7 +594,7 @@
                     <button onclick="openGalleryModal()" class="btn btn-primary">
                         <i class="fas fa-images"></i> View Complete Gallery
                     </button>
-                    <a href="#contact" class="btn btn-outline">
+                    <a href="javascript:void(0)" onclick="scrollToContact()" class="btn btn-outline">
                         <i class="fas fa-camera"></i> Request Project Photos
                     </a>
                 </div>
@@ -709,11 +742,11 @@
                     <div class="footer-links">
                         <h4>Quick Links</h4>
                         <ul>
-                            <li><a href="#home">Home</a></li>
-                            <li><a href="#portfolio">Services</a></li>
+                            <li><a href="javascript:void(0)" onclick="scrollToHome()">Home</a></li>
+                            <li><a href="javascript:void(0)" onclick="scrollToPortfolio()">Services</a></li>
                             <li><a href="javascript:void(0)" onclick="openGalleryModal()">Gallery</a></li>
                             <li><a href="javascript:void(0)" onclick="showAbout()">About</a></li>
-                            <li><a href="#contact">Contact</a></li>
+                            <li><a href="javascript:void(0)" onclick="scrollToContact()">Contact</a></li>
                         </ul>
                     </div>
                     
@@ -799,7 +832,7 @@
 
       <p>
         📸 View our work on the 
-        <a href="javascript:void(0)" onclick="openGalleryModal()" style="color: blue; font-weight: bold;">Gallery Page</a>
+        <a href="javascript:void(0)" onclick="openGalleryModalFromAbout()" style="color: blue; font-weight: bold; text-decoration: underline; cursor: pointer;">Gallery Page</a>
       </p>
 
       <hr style="margin: 40px 0;">
@@ -811,7 +844,7 @@
 
       <p>
         👉 Check available plans on our 
-        <a href="javascript:void(0)" onclick="showBundles()" style="color: blue; font-weight: bold;">Packages Page</a>
+        <a href="javascript:void(0)" onclick="showBundlesFromAbout()" style="color: blue; font-weight: bold; text-decoration: underline; cursor: pointer;">Packages Page</a>
       </p>
 
       <hr style="margin: 40px 0;">
@@ -849,22 +882,22 @@
     </section>
 
     <!-- Gallery Modal -->
-    <div id="galleryModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
+    <div id="galleryModal" class="modal" style="display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8);">
+        <div class="modal-content" style="background-color: #fff; margin: 5% auto; padding: 20px; width: 90%; max-width: 1200px; border-radius: 12px;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h3><i class="fas fa-images"></i> Complete Project Gallery</h3>
-                <button class="modal-close" onclick="closeGalleryModal()">
+                <button class="modal-close" onclick="closeGalleryModal()" style="background: none; border: none; font-size: 24px; cursor: pointer;">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="modal-body">
-                <div class="gallery-filters">
-                    <button class="filter-btn active" data-filter="all">All</button>
-                    <button class="filter-btn" data-filter="installation">Installations</button>
-                    <button class="filter-btn" data-filter="business">Business</button>
-                    <button class="filter-btn" data-filter="home">Home</button>
+                <div class="gallery-filters" style="margin-bottom: 20px;">
+                    <button class="filter-btn active" data-filter="all" style="padding: 8px 16px; margin-right: 10px; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">All</button>
+                    <button class="filter-btn" data-filter="installation" style="padding: 8px 16px; margin-right: 10px; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">Installations</button>
+                    <button class="filter-btn" data-filter="business" style="padding: 8px 16px; margin-right: 10px; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">Business</button>
+                    <button class="filter-btn" data-filter="home" style="padding: 8px 16px; margin-right: 10px; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">Home</button>
                 </div>
-                <div class="modal-gallery" id="modalGalleryContainer">
+                <div class="modal-gallery" id="modalGalleryContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;">
                     <!-- Full gallery loaded here -->
                 </div>
             </div>
@@ -872,7 +905,7 @@
     </div>
 
     <!-- Messages Modal -->
-    <div id="messagesModal" class="messages-modal">
+    <div id="messagesModal" class="messages-modal" style="display: none;">
         <div class="messages-modal-content">
             <div class="messages-modal-header">
                 <h3 id="messagesModalTitle"><i class="fas fa-bell"></i> Notifications & Updates</h3>
@@ -902,11 +935,11 @@
     </div>
 
     <!-- Notification Toast -->
-    <div id="notification-toast" class="notification-toast">
-        <div class="notification-content">
+    <div id="notification-toast" class="notification-toast" style="display: none; position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 15px; border-radius: 8px; z-index: 3000;">
+        <div class="notification-content" style="display: flex; align-items: center; gap: 10px;">
             <i class="fas fa-info-circle"></i>
             <span id="notification-message"></span>
-            <button class="notification-close" onclick="closeNotification()">
+            <button class="notification-close" onclick="closeNotification()" style="background: none; border: none; color: white; cursor: pointer;">
                 <i class="fas fa-times"></i>
             </button>
         </div>
@@ -915,8 +948,28 @@
     <!-- Scripts -->
     <script src="js/main-browser.js"></script>
     <script>
+        // Toggle dropdown menu
+        function toggleDropdown(element) {
+            const dropdown = element.nextElementSibling;
+            if (dropdown.style.display === 'block') {
+                dropdown.style.display = 'none';
+            } else {
+                // Close all other dropdowns first
+                closeAllDropdowns();
+                dropdown.style.display = 'block';
+            }
+        }
+
+        // Close all dropdowns
+        function closeAllDropdowns() {
+            document.querySelectorAll('.dropdown-menu').forEach(menu => {
+                menu.style.display = 'none';
+            });
+        }
+
         // Show About section (hides main content)
         function showAbout() {
+            closeAllDropdowns();
             document.getElementById('mainContent').classList.add('hidden');
             document.getElementById('about').classList.add('active');
             document.getElementById('backHomeBtn').style.display = 'flex';
@@ -925,10 +978,129 @@
 
         // Show main content (hides About section)
         function showMainContent() {
+            closeAllDropdowns();
             document.getElementById('mainContent').classList.remove('hidden');
             document.getElementById('about').classList.remove('active');
             document.getElementById('backHomeBtn').style.display = 'none';
+            window.scrollTo(0, 0);
         }
+
+        // Scroll functions
+        function scrollToHome() {
+            closeAllDropdowns();
+            document.getElementById('home').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function scrollToPortfolio() {
+            closeAllDropdowns();
+            document.getElementById('portfolio').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function scrollToContact() {
+            closeAllDropdowns();
+            document.getElementById('contact').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Gallery functions
+        function openGalleryModal() {
+            closeAllDropdowns();
+            document.getElementById('galleryModal').style.display = 'block';
+        }
+
+        function openGalleryModalFromAbout() {
+            showMainContent(); // Go back to main content first
+            setTimeout(() => {
+                openGalleryModal();
+            }, 100);
+        }
+
+        function closeGalleryModal() {
+            document.getElementById('galleryModal').style.display = 'none';
+        }
+
+        // Bundles functions
+        function showBundles() {
+            closeAllDropdowns();
+            document.getElementById('bundles').style.display = 'block';
+            document.getElementById('bundles').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function showBundlesFromAbout() {
+            showMainContent(); // Go back to main content first
+            setTimeout(() => {
+                showBundles();
+            }, 100);
+        }
+
+        function hideBundles() {
+            document.getElementById('bundles').style.display = 'none';
+        }
+
+        // Messages functions
+        function openMessagesModal() {
+            closeAllDropdowns();
+            document.getElementById('messagesModal').style.display = 'block';
+        }
+
+        function closeMessagesModal() {
+            document.getElementById('messagesModal').style.display = 'none';
+        }
+
+        function markAllNotificationsAsRead() {
+            // Your notification logic here
+            alert('All notifications marked as read');
+        }
+
+        function refreshNotifications() {
+            // Your refresh logic here
+            alert('Notifications refreshed');
+        }
+
+        function exportNotifications() {
+            // Your export logic here
+            alert('Notifications exported');
+        }
+
+        function closeNotification() {
+            document.getElementById('notification-toast').style.display = 'none';
+        }
+
+        // Contact functions
+        function openWhatsApp() {
+            window.open('https://wa.me/254740851330', '_blank');
+        }
+
+        function callNow() {
+            window.location.href = 'tel:0740851330';
+        }
+
+        function sendEmail() {
+            window.location.href = 'mailto:support@starlinktokenwifi.com';
+        }
+
+        function openLocation() {
+            window.open('https://maps.google.com/?q=Nakuru,Kenya', '_blank');
+        }
+
+        // Social media functions
+        function openFacebook() {
+            window.open('https://facebook.com', '_blank');
+        }
+
+        function openTwitter() {
+            window.open('https://twitter.com', '_blank');
+        }
+
+        function openInstagram() {
+            window.open('https://instagram.com', '_blank');
+        }
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.dropdown')) {
+                closeAllDropdowns();
+            }
+        });
 
         // Helper function to check if element is in viewport
         function isElementInViewport(el) {
@@ -952,51 +1124,6 @@
 
         // Observe fade-in elements when they become visible
         document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
-
-        // Keep your existing functions
-        function openGalleryModal() {
-            // Your existing gallery modal function
-        }
-
-        function closeGalleryModal() {
-            // Your existing close gallery function
-        }
-
-        function showBundles() {
-            document.getElementById('bundles').style.display = 'block';
-        }
-
-        function hideBundles() {
-            document.getElementById('bundles').style.display = 'none';
-        }
-
-        function openWhatsApp() {
-            window.open('https://wa.me/254740851330', '_blank');
-        }
-
-        function callNow() {
-            window.location.href = 'tel:0740851330';
-        }
-
-        function sendEmail() {
-            window.location.href = 'mailto:support@starlinktokenwifi.com';
-        }
-
-        function openLocation() {
-            window.open('https://maps.google.com/?q=Nakuru,Kenya', '_blank');
-        }
-
-        function openFacebook() {
-            window.open('https://facebook.com', '_blank');
-        }
-
-        function openTwitter() {
-            window.open('https://twitter.com', '_blank');
-        }
-
-        function openInstagram() {
-            window.open('https://instagram.com', '_blank');
-        }
     </script>
 </body>
 </html>
