@@ -372,37 +372,6 @@
             display: block;
         }
 
-        /* Back to home button */
-        .back-home-btn {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            background: #2563eb;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            z-index: 1000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            transition: all 0.3s ease;
-        }
-
-        .back-home-btn:hover {
-            background: #1d4ed8;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
-        }
-
-        .back-home-btn i {
-            font-size: 18px;
-        }
-
         /* Dropdown menu styles */
         .dropdown-menu {
             display: none;
@@ -423,6 +392,10 @@
             display: block;
         }
 
+        .dropdown-toggle.active {
+            color: #2563eb;
+        }
+
         .dropdown-menu a {
             display: block;
             padding: 10px 20px;
@@ -437,11 +410,6 @@
     </style>
 </head>
 <body>
-    <!-- Back to Home Button (hidden by default) -->
-    <button class="back-home-btn" id="backHomeBtn" onclick="showMainContent()" style="display: none;">
-        <i class="fas fa-arrow-left"></i> Back to Home
-    </button>
-
     <!-- Main Content Wrapper -->
     <div class="main-content" id="mainContent">
         <!-- Navigation -->
@@ -459,9 +427,9 @@
                             Gallery <i class="fas fa-chevron-down"></i>
                         </a>
                         <div class="dropdown-menu">
-                            <a href="javascript:void(0)" onclick="closeAllDropdowns(); openGalleryModal()">Featured Projects</a>
-                            <a href="javascript:void(0)" onclick="closeAllDropdowns(); openGalleryModal()">View All Photos</a>
-                            <a href="javascript:void(0)" onclick="closeAllDropdowns(); scrollToContact()">Request Site Visit</a>
+                            <a href="javascript:void(0)" onclick="closeDropdowns(); openGalleryModal()">Featured Projects</a>
+                            <a href="javascript:void(0)" onclick="closeDropdowns(); openGalleryModal()">View All Photos</a>
+                            <a href="javascript:void(0)" onclick="closeDropdowns(); scrollToContact()">Request Site Visit</a>
                         </div>
                     </li>
                     <li class="dropdown">
@@ -469,9 +437,9 @@
                             Packages <i class="fas fa-chevron-down"></i>
                         </a>
                         <div class="dropdown-menu">
-                            <a href="javascript:void(0)" onclick="closeAllDropdowns(); showBundles()">View All Bundles</a>
-                            <a href="javascript:void(0)" onclick="closeAllDropdowns(); scrollToContact()">Get Custom Quote</a>
-                            <a href="javascript:void(0)" onclick="closeAllDropdowns(); scrollToContact()">Business Solutions</a>
+                            <a href="javascript:void(0)" onclick="closeDropdowns(); showBundles()">View All Bundles</a>
+                            <a href="javascript:void(0)" onclick="closeDropdowns(); scrollToContact()">Get Custom Quote</a>
+                            <a href="javascript:void(0)" onclick="closeDropdowns(); scrollToContact()">Business Solutions</a>
                         </div>
                     </li>
                     <li><a href="javascript:void(0)" onclick="showAbout()">About</a></li>
@@ -948,62 +916,88 @@
     <!-- Scripts -->
     <script src="js/main-browser.js"></script>
     <script>
-        // Toggle dropdown menu
-        function toggleDropdown(element) {
-            const dropdown = element.nextElementSibling;
-            if (dropdown.style.display === 'block') {
-                dropdown.style.display = 'none';
-            } else {
-                // Close all other dropdowns first
-                closeAllDropdowns();
-                dropdown.style.display = 'block';
-            }
-        }
-
+        // ===== DROPDOWN MENU FUNCTIONS =====
+        
         // Close all dropdowns
-        function closeAllDropdowns() {
+        function closeDropdowns() {
             document.querySelectorAll('.dropdown-menu').forEach(menu => {
                 menu.style.display = 'none';
             });
+
+            document.querySelectorAll('.dropdown-toggle').forEach(toggle => {
+                toggle.classList.remove('active');
+            });
         }
+
+        // Toggle individual dropdown
+        function toggleDropdown(element) {
+            const dropdown = element.nextElementSibling;
+            
+            // Check if this dropdown is already open
+            const isOpen = dropdown.style.display === 'block';
+            
+            // Close all dropdowns first
+            closeDropdowns();
+            
+            // If it wasn't open, open this one
+            if (!isOpen) {
+                dropdown.style.display = 'block';
+                element.classList.add('active');
+            }
+        }
+
+        // Auto-close dropdown when any item is clicked
+        document.querySelectorAll('.dropdown-menu a').forEach(link => {
+            link.addEventListener('click', () => {
+                closeDropdowns();
+            });
+        });
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.dropdown')) {
+                closeDropdowns();
+            }
+        });
+
+        // ===== PAGE NAVIGATION FUNCTIONS =====
 
         // Show About section (hides main content)
         function showAbout() {
-            closeAllDropdowns();
+            closeDropdowns();
             document.getElementById('mainContent').classList.add('hidden');
             document.getElementById('about').classList.add('active');
-            document.getElementById('backHomeBtn').style.display = 'flex';
             window.scrollTo(0, 0);
         }
 
         // Show main content (hides About section)
         function showMainContent() {
-            closeAllDropdowns();
+            closeDropdowns();
             document.getElementById('mainContent').classList.remove('hidden');
             document.getElementById('about').classList.remove('active');
-            document.getElementById('backHomeBtn').style.display = 'none';
             window.scrollTo(0, 0);
         }
 
         // Scroll functions
         function scrollToHome() {
-            closeAllDropdowns();
+            closeDropdowns();
             document.getElementById('home').scrollIntoView({ behavior: 'smooth' });
         }
 
         function scrollToPortfolio() {
-            closeAllDropdowns();
+            closeDropdowns();
             document.getElementById('portfolio').scrollIntoView({ behavior: 'smooth' });
         }
 
         function scrollToContact() {
-            closeAllDropdowns();
+            closeDropdowns();
             document.getElementById('contact').scrollIntoView({ behavior: 'smooth' });
         }
 
-        // Gallery functions
+        // ===== GALLERY FUNCTIONS =====
+
         function openGalleryModal() {
-            closeAllDropdowns();
+            closeDropdowns();
             document.getElementById('galleryModal').style.display = 'block';
         }
 
@@ -1018,9 +1012,10 @@
             document.getElementById('galleryModal').style.display = 'none';
         }
 
-        // Bundles functions
+        // ===== BUNDLES FUNCTIONS =====
+
         function showBundles() {
-            closeAllDropdowns();
+            closeDropdowns();
             document.getElementById('bundles').style.display = 'block';
             document.getElementById('bundles').scrollIntoView({ behavior: 'smooth' });
         }
@@ -1036,9 +1031,10 @@
             document.getElementById('bundles').style.display = 'none';
         }
 
-        // Messages functions
+        // ===== MESSAGES FUNCTIONS =====
+
         function openMessagesModal() {
-            closeAllDropdowns();
+            closeDropdowns();
             document.getElementById('messagesModal').style.display = 'block';
         }
 
@@ -1065,7 +1061,8 @@
             document.getElementById('notification-toast').style.display = 'none';
         }
 
-        // Contact functions
+        // ===== CONTACT FUNCTIONS =====
+
         function openWhatsApp() {
             window.open('https://wa.me/254740851330', '_blank');
         }
@@ -1082,7 +1079,8 @@
             window.open('https://maps.google.com/?q=Nakuru,Kenya', '_blank');
         }
 
-        // Social media functions
+        // ===== SOCIAL MEDIA FUNCTIONS =====
+
         function openFacebook() {
             window.open('https://facebook.com', '_blank');
         }
@@ -1095,12 +1093,7 @@
             window.open('https://instagram.com', '_blank');
         }
 
-        // Close dropdowns when clicking outside
-        document.addEventListener('click', function(event) {
-            if (!event.target.closest('.dropdown')) {
-                closeAllDropdowns();
-            }
-        });
+        // ===== INTERSECTION OBSERVER FOR FADE-IN EFFECTS =====
 
         // Helper function to check if element is in viewport
         function isElementInViewport(el) {
