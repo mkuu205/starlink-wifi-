@@ -293,6 +293,59 @@
             padding: 0 5px;
             font-weight: bold;
         }
+
+        /* === PREMIUM ABOUT SECTION UPGRADE === */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s ease;
+        }
+
+        .fade-in.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Premium card hover */
+        .portfolio-card {
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .portfolio-card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 12px;
+            background: linear-gradient(120deg, transparent, rgba(37,99,235,0.15), transparent);
+            opacity: 0;
+            transition: 0.4s;
+        }
+
+        .portfolio-card:hover::after {
+            opacity: 1;
+        }
+
+        .portfolio-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.12);
+        }
+
+        /* Gradient CTA */
+        .premium-cta {
+            background: linear-gradient(135deg, #2563eb, #10b981);
+            color: white;
+        }
+
+        /* Button glow */
+        .btn-primary {
+            box-shadow: 0 5px 15px rgba(37,99,235,0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body>
@@ -326,6 +379,7 @@
                         <a href="#contact">Business Solutions</a>
                     </div>
                 </li>
+                <li><a href="#about">About</a></li>
                 <li><a href="#contact">Contact</a></li>
                 <li>
                  <button
@@ -474,6 +528,112 @@
         </div>
     </section>
 
+    <!-- About Section -->
+    <section id="about" class="portfolio" style="background:#f9fafb;">
+      <div class="container">
+
+        <!-- Header -->
+        <div class="section-header fade-in">
+          <h2 class="section-title">About Starlink Token WiFi</h2>
+          <p class="section-subtitle">Premium Internet Solutions Across Kenya</p>
+        </div>
+
+        <!-- Hero CTA -->
+        <div class="hero fade-in premium-cta" style="border-radius:12px; padding:30px;">
+          <div class="hero-content" style="text-align:center;">
+            <h2>Fast • Reliable • Unlimited Connectivity</h2>
+            <p>Enterprise-grade WiFi installations for homes, schools & businesses</p>
+
+            <p style="font-weight:600;">🚀 FREE Installation — No Hidden Costs</p>
+
+            <div style="margin-top:15px;">
+              <a href="tel:0713124673" class="btn btn-primary">
+                <i class="fas fa-phone"></i> Call Now
+              </a>
+
+              <button onclick="openWhatsApp()" class="btn btn-outline">
+                <i class="fab fa-whatsapp"></i> WhatsApp
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Founder + Mission -->
+        <div class="portfolio-grid" style="margin-top:40px;">
+          <div class="portfolio-card fade-in">
+            <div class="card-icon"><i class="fas fa-user-tie"></i></div>
+            <h3>Founder</h3>
+            <p>Led by <strong>Bill Kama Njehia</strong>, focused on delivering accessible internet solutions.</p>
+          </div>
+
+          <div class="portfolio-card fade-in">
+            <div class="card-icon"><i class="fas fa-rocket"></i></div>
+            <h3>Mission</h3>
+            <p>To provide affordable, high-performance WiFi with zero installation cost.</p>
+          </div>
+        </div>
+
+        <!-- Services -->
+        <div class="section-header fade-in" style="margin-top:50px;">
+          <h2 class="section-title">What We Do</h2>
+        </div>
+
+        <div class="portfolio-grid">
+          <div class="portfolio-card fade-in"><i class="fas fa-house card-icon"></i><h3>Home WiFi</h3></div>
+          <div class="portfolio-card fade-in"><i class="fas fa-school card-icon"></i><h3>School Networks</h3></div>
+          <div class="portfolio-card fade-in"><i class="fas fa-building card-icon"></i><h3>Business Solutions</h3></div>
+          <div class="portfolio-card fade-in"><i class="fas fa-tools card-icon"></i><h3>Full Setup</h3></div>
+        </div>
+
+        <!-- Installations -->
+        <div class="section-header fade-in" style="margin-top:50px;">
+          <h2 class="section-title">Our Installations</h2>
+        </div>
+
+        <div class="portfolio-grid">
+          <div class="portfolio-card fade-in"><i class="fas fa-map-marker-alt card-icon"></i><h3>RVIST Nakuru</h3></div>
+          <div class="portfolio-card fade-in"><i class="fas fa-map-marker-alt card-icon"></i><h3>Rongai Schools</h3></div>
+          <div class="portfolio-card fade-in"><i class="fas fa-map-marker-alt card-icon"></i><h3>Kericho Schools</h3></div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="section-footer fade-in" style="margin-top:20px;">
+          <button onclick="openGalleryModal()" class="btn btn-primary">
+            <i class="fas fa-images"></i> View Gallery
+          </button>
+
+          <button onclick="showBundles()" class="btn btn-outline">
+            <i class="fas fa-wifi"></i> View Packages
+          </button>
+        </div>
+
+        <!-- Why Us -->
+        <div class="section-header fade-in" style="margin-top:50px;">
+          <h2 class="section-title">Why Choose Us</h2>
+        </div>
+
+        <div class="portfolio-grid">
+          <div class="portfolio-card fade-in"><i class="fas fa-check card-icon"></i><h3>FREE Installation</h3></div>
+          <div class="portfolio-card fade-in"><i class="fas fa-bolt card-icon"></i><h3>High Speed</h3></div>
+          <div class="portfolio-card fade-in"><i class="fas fa-globe card-icon"></i><h3>Wide Coverage</h3></div>
+          <div class="portfolio-card fade-in"><i class="fas fa-headset card-icon"></i><h3>24/7 Support</h3></div>
+        </div>
+
+        <!-- Final CTA -->
+        <div class="hero fade-in premium-cta" style="margin-top:50px; border-radius:12px;">
+          <div class="hero-content" style="text-align:center;">
+            <h2>Get Connected Today</h2>
+            <p>Fast • Reliable • FREE Installation</p>
+
+            <a href="tel:0713124673" class="btn btn-primary">
+              <i class="fas fa-phone"></i> Call / WhatsApp 0713124673
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
     <!-- Contact Section -->
     <section id="contact" class="contact">
         <div class="container">
@@ -595,6 +755,7 @@
                         <li><a href="#home">Home</a></li>
                         <li><a href="#portfolio">Services</a></li>
                         <li><a href="javascript:void(0)" onclick="openGalleryModal()">Gallery</a></li>
+                        <li><a href="#about">About</a></li>
                         <li><a href="#contact">Contact</a></li>
                     </ul>
                 </div>
@@ -694,7 +855,18 @@
         </div>
     </div>
 
-    <!-- Scripts - ONLY ONE SCRIPT TAG -->
+    <!-- Scripts -->
     <script src="js/main-browser.js"></script>
+    <script>
+        const observer = new IntersectionObserver(entries => {
+          entries.forEach(entry => {
+            if(entry.isIntersecting){
+              entry.target.classList.add('show');
+            }
+          });
+        });
+
+        document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+    </script>
 </body>
 </html>
